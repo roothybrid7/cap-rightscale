@@ -141,10 +141,6 @@ start = Time.now
 puts "Time: #{Time.now - start}"
         host_list || []
       end
-      def clear_cache()
-        puts "CLEAR!!"
-      end
-      END { puts "END" }
     end
   end
 end
