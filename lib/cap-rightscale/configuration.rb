@@ -1,4 +1,4 @@
-require 'cap-righscale/configuration/rightscale'
+require 'cap-rightscale/configuration/rightscale'
 
 module Capistrano
   class Configuration
