@@ -15,8 +15,8 @@ Jeweler::Tasks.new do |gem|
   gem.name = "cap-rightscale"
   gem.homepage = "http://github.com/roothybrid7/cap-rightscale"
   gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
+  gem.summary = %Q{Capistrano extension that maps RightScale parameters to Roles}
+  gem.description = %Q{Capistrano extension that maps RightScale parameters to Roles.}
   gem.email = "roothybrid7@gmail.com"
   gem.authors = ["Satoshi Ohki"]
   # Include your dependencies below. Runtime dependencies are required when using your gem,
