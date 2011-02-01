@@ -9,6 +9,15 @@ module Capistrano
         @rs_confpath = path
       end
 
+      # register deploy host's /etc/hosts OR dns record(replace 's/ #/-000/' to ServerArray name)
+      def use_nick(bool=false)
+        @use_nick = bool
+      end
+
+      def enable_hostname
+        @use_nick ||= false
+      end
+
       def connect
         @auth ||= open(get_rs_confpath) {|f| YAML.load(f)}
         @conn ||= RightResource::Connection.new do |c|
@@ -46,12 +55,12 @@ start = Time.now
         params.delete(:array_id)  # remove rightscale's parameters
 
         host_list = ServerArray.instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
+          hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
           ip = instance[:private_ip_address]
-          logger.info("Found server: #{instance[:nickname]}(#{ip})")
-#          server(ip, role, params)
-          ip
+          logger.info("Found server: #{hostname}(#{ip})")
+          enable_hostname ? hostname : ip
         end
-        role(role, host_list.join(','), params) if host_list
+        role(role, params) { host_list } if host_list
 puts "Time: #{Time.now - start}"
         host_list || []
       end
@@ -82,12 +91,12 @@ start = Time.now
         params.delete(:name_prefix) if params.has_key?(:name_prefix)
 
         host_list = srvs.map do |server|
+          hostname = server[:nickname]
           ip = server[:settings][:private_ip_address]
-          logger.info("Found server: #{server[:nickname]}(#{ip})")
-#          server(ip, role, params)
-          ip
+          logger.info("Found server: #{hostname}(#{ip})")
+          enable_hostname ? hostname : ip
         end
-        role(role, host_list.join(','), params) if host_list
+        role(role, params) { host_list } if host_list
 puts "Time: #{Time.now - start}"
         host_list || []
       end
@@ -130,13 +139,13 @@ start = Time.now
         host_list = []
         if found_ids.size > 0
           host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
+            hostname = server[:nickname]
             ip = server[:settings][:private_ip_address]
             logger.info("Found server: #{server[:nickname]}(#{ip})")
-            #server(ip, role, params)
-            ip
+            enable_hostname ? hostname : ip
           end
 
-          role(role, host_list.join(','), params) if host_list
+          role(role, params) { host_list } if host_list
         end
 puts "Time: #{Time.now - start}"
         host_list || []
