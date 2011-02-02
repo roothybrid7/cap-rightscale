@@ -1,5 +1,5 @@
 class RSUtils
-  def self.mk_rs_cache_dir(prefix)
+  def self.mk_rs_cache_dir(prefix=nil)
     tmpdir = Dir.tmpdir
     _prefix = prefix || "cap-rightscale"
     begin
