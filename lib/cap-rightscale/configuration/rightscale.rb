@@ -41,6 +41,7 @@ module Capistrano
         return [] unless check_role(role)
         raise ArgumentError, ":array_id is not included in params!![#{params}]" unless params.has_key?(:array_id)
 
+start = Time.now
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
@@ -55,7 +56,6 @@ module Capistrano
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-start = Time.now
           array = get_array(_array_id)
           logger.info("querying rightscale for server_array #{array.nickname}...")
           dept = get_deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
@@ -97,6 +97,7 @@ puts "Time: #{Time.now - start}"
         return [] unless check_role(role)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
 
+start = Time.now
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
@@ -113,7 +114,6 @@ puts "Time: #{Time.now - start}"
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-start = Time.now
           dept = get_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers #{_name_prefix} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
@@ -155,6 +155,7 @@ puts "Time: #{Time.now - start}"
         raise ArgumentError, ":tags is not included in params!![#{params}]" unless params.has_key?(:tags)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
 
+start = Time.now
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
@@ -171,7 +172,6 @@ puts "Time: #{Time.now - start}"
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-start = Time.now
           dept = get_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers matching tags #{_tags} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
