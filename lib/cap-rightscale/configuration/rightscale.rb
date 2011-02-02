@@ -10,12 +10,12 @@ module Capistrano
       end
 
       # register deploy host's /etc/hosts OR dns record(replace 's/ #/-000/' to ServerArray name)
-      def use_nick(bool=false)
+      def use_nickname(bool=false)
         @use_nick = bool
       end
 
-      def enable_hostname
-        @use_nick ||= false
+      def domainname(domain)
+        @domain = domain
       end
 
       def connect
@@ -23,13 +23,8 @@ module Capistrano
         @conn ||= RightResource::Connection.new do |c|
           c.login(:username => @auth["username"], :password => @auth["password"], :account => @auth["account"])
         end
-        RightResource::Base.connection = @conn
-      end
 
-      def check_role(role)
-        return false if ENV['HOSTS']
-        return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
-        return true
+        RightResource::Base.connection = @conn
       end
 
       # Get RightScale Server Array
@@ -56,6 +51,7 @@ start = Time.now
 
         host_list = ServerArray.instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
           hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
+          hostname << ".#{_domain}" if _domain
           ip = instance[:private_ip_address]
           logger.info("Found server: #{hostname}(#{ip})")
           enable_hostname ? hostname : ip
@@ -92,6 +88,8 @@ start = Time.now
 
         host_list = srvs.map do |server|
           hostname = server[:nickname]
+          hostname << ".#{_domain}" if _domain
+puts hostname
           ip = server[:settings][:private_ip_address]
           logger.info("Found server: #{hostname}(#{ip})")
           enable_hostname ? hostname : ip
@@ -140,8 +138,9 @@ start = Time.now
         if found_ids.size > 0
           host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
             hostname = server[:nickname]
+            hostname << ".#{_domain}" if _domain
             ip = server[:settings][:private_ip_address]
-            logger.info("Found server: #{server[:nickname]}(#{ip})")
+            logger.info("Found server: #{hostname}(#{ip})")
             enable_hostname ? hostname : ip
           end
 
@@ -150,6 +149,21 @@ start = Time.now
 puts "Time: #{Time.now - start}"
         host_list || []
       end
+
+      private
+        def enable_hostname
+          @use_nick ||= false
+        end
+
+        def _domain
+          @domain || nil
+        end
+
+        def check_role(role)
+          return false if ENV['HOSTS']
+          return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
+          return true
+        end
     end
   end
 end
