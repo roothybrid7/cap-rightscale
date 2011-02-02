@@ -44,7 +44,7 @@ module Capistrano
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
-        _array = params[:array_id]
+        _array_id = params[:array_id]
 
         params.delete(:array_id)  # remove rightscale's parameters
 
@@ -56,10 +56,10 @@ module Capistrano
         else
           # Request RightScale API
 start = Time.now
-          connect
-          array = ServerArray.show(_array)
+          array = get_array(_array_id)
           logger.info("querying rightscale for server_array #{array.nickname}...")
-          deployment_name = Deployment.show(array.deployment_href.match(/[0-9]+$/).to_s).nickname
+          dept = get_deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
+          deployment_name = dept.nickname
           logger.info("Deployment #{deployment_name}:")
 
           host_list = ServerArray.instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
@@ -100,7 +100,7 @@ puts "Time: #{Time.now - start}"
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
-        _dept = params[:deployment]
+        _dept_id = params[:deployment]
         _name_prefix = params[:name_prefix]
 
         params.delete(:deployment)
@@ -114,8 +114,7 @@ puts "Time: #{Time.now - start}"
         else
           # Request RightScale API
 start = Time.now
-          connect
-          dept = Deployment.show(_dept, :server_settings => 'true')
+          dept = get_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers #{_name_prefix} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
           srvs = srvs.select {|s| /#{_name_prefix}/ =~ s[:nickname]} if _name_prefix
@@ -159,7 +158,7 @@ puts "Time: #{Time.now - start}"
         logger.info("SETTING ROLE: #{role}")
 
         # Set rightscale's parameters
-        _dept = params[:deployment]
+        _dept_id = params[:deployment]
         _tags = params[:tags]
 
         params.delete(:deployment)
@@ -173,15 +172,14 @@ puts "Time: #{Time.now - start}"
         else
           # Request RightScale API
 start = Time.now
-          connect
-          dept = Deployment.show(_dept, :server_settings => 'true')
+          dept = get_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers matching tags #{_tags} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
 
           ts_params = {:resource_type => "ec2_instance", :tags => [_tags]}
           ts = Tag.search(ts_params).
             select {|s| s.state == "operational"}.
-            select {|s| s.deployment_href.match(/[0-9]+$/).to_s == _dept.to_s}
+            select {|s| s.deployment_href.match(/[0-9]+$/).to_s == _dept_id.to_s}
 
           # diff servers in deployment and servers matching tags in deployment
           srvs_ids = srvs.map {|s| s[:href].match(/[0-9]+$/).to_s}
@@ -213,6 +211,27 @@ puts "Time: #{Time.now - start}"
       end
 
       private
+        def get_array(id)
+          array = self.instance_variable_get("@array_#{id}")
+
+          unless array
+            connect
+            array = self.instance_variable_set("@array_#{id}", ServerArray.show(id))
+          end
+          array
+        end
+
+        def get_deployment(id, params)
+          dept = self.instance_variable_get("@deployment_#{id}")
+
+          unless dept
+            connect
+            self.instance_variable_set("@deployment_#{id}", Deployment.show(id, params))
+            dept = self.instance_variable_get("@deployment_#{id}")
+          end
+          dept
+        end
+
         def connect
           @auth ||= open(get_rs_confpath) {|f| YAML.load(f)}
           @conn ||= RightResource::Connection.new do |c|
