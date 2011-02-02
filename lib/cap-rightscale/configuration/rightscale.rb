@@ -74,13 +74,13 @@ start = Time.now
             enable_hostname ? hostname : ip
           end
           host_list.delete(nil)
-puts "Time: #{Time.now - start}"
+
           if host_list && host_list.size > 0
             role(role, params) { host_list }
             dump_server_cache(role, host_list)  # Dump cache
           end
         end
-
+puts "Time: #{Time.now - start}"
         host_list || []
       end
 
@@ -131,13 +131,13 @@ start = Time.now
             enable_hostname ? hostname : ip
           end
           host_list.delete(nil)
-puts "Time: #{Time.now - start}"
+
           if host_list && host_list.size > 0
             role(role, params) { host_list }
             dump_server_cache(role, host_list)  # Dump cache
           end
         end
-
+puts "Time: #{Time.now - start}"
         host_list || []
       end
 
@@ -200,13 +200,13 @@ start = Time.now
             end
             host_list.delete(nil)
           end
-puts "Time: #{Time.now - start}"
+
           if host_list && host_list.size > 0
             role(role, params) { host_list }
             dump_server_cache(role, host_list)  # Dump cache
           end
         end
-
+puts "Time: #{Time.now - start}"
         host_list || []
       end
 
