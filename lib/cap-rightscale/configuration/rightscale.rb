@@ -89,7 +89,6 @@ start = Time.now
         host_list = srvs.map do |server|
           hostname = server[:nickname]
           hostname << ".#{_domain}" if _domain
-puts hostname
           ip = server[:settings][:private_ip_address]
           logger.info("Found server: #{hostname}(#{ip})")
           enable_hostname ? hostname : ip
