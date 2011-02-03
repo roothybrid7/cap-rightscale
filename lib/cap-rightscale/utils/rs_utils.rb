@@ -34,4 +34,5 @@ class RSUtils
 
       hosts
     end
+  end
 end
