@@ -1,7 +1,5 @@
 require 'cap-rightscale/utils/rs_utils.rb'
 require 'cap-rightscale/configuration/rightscale/resource'
-require 'ping'
-require 'thread'
 
 module Capistrano
   class Configuration
