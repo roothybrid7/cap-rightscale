@@ -10,7 +10,7 @@ class RSUtils
         path = "#{tmpdir}/#{_prefix}-#{ENV['USER']}-#{rand(0x100000000).to_s(36)}"
         Dir.mkdir(path, 0700)
       rescue Errno::EEXIST
-        logger.warn(e)
+        warn(e)
         exit(1)
       end
     end
@@ -22,12 +22,12 @@ class RSUtils
         threads << Thread.new {Ping.pingecho(host)}
       end
       threads.each_with_index do |t,i|
-          unless t.value
-            logger.info("Server dead: #{hosts[i]}")
-            hosts[i] = nil
-          else
-            logger.info("Server alive: #{hosts[i]}")
-          end
+        unless t.value
+          logger.info("Server dead: #{hosts[i]}")
+          hosts[i] = nil
+        else
+          logger.info("Server alive: #{hosts[i]}")
+        end
       end
       hosts.delete(nil)
       threads.clear
