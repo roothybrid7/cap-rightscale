@@ -76,25 +76,13 @@ start = Time.now
 
           host_list = get_rs_instance.__send__(:array_instances, array.id).select {|i| i[:state] == "operational"}.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
-            hostname << ".#{_domain}" if _domain
+            hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
 
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-
-          if validate_echo
-            threads = []
-            host_list.each do |host|
-puts host
-              threads << Thread.new {Ping.pingecho(host)}
-            end
-            threads.each.with_index do |t,i|
-                host_list[i] = nil if t.value == false
-            end
-            threads.clear
-            host_list.delete(nil)
-          end
+          host_list = _valid_echo(host_list) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -138,30 +126,18 @@ start = Time.now
           # Request RightScale API
           dept = get_rs_instance.__send__(:deployment, _dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers #{_name_prefix} in deployment #{dept.nickname}...")
-#          srvs = dept.servers.select {|s| s[:state] == "operational"}
-          srvs = dept.servers
+          srvs = dept.servers.select {|s| s[:state] == "operational"}
           srvs = srvs.select {|s| /#{_name_prefix}/ =~ s[:nickname]} if _name_prefix
 
           host_list = srvs.map do |server|
             hostname = server[:nickname]
-            hostname << ".#{_domain}" if _domain
+            hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-
-          if validate_echo
-            threads = []
-            host_list.each do |host|
-              threads << Thread.new {Ping.pingecho(host)}
-            end
-            threads.each.with_index do |t,i|
-                host_list[i] = nil unless t.value
-            end
-            threads.clear
-            host_list.delete(nil)
-          end
+          host_list = _valid_echo(host_list) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -221,16 +197,13 @@ start = Time.now
           if found_ids.size > 0
             host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
               hostname = server[:nickname]
-              hostname << ".#{_domain}" if _domain
+              hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
               ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
-              if validate_echo
-                next unless Ping.pingecho(ip)
-              end
 
               logger.info("Found server: #{hostname}(#{ip})")
               use_nickname ? hostname : ip
             end
-            host_list.delete(nil)
+            host_list = _valid_echo(host_list) if validate_echo
           end
 
           if host_list && host_list.size > 0
@@ -299,6 +272,26 @@ puts "Time: #{Time.now - start}"
             STDERR.puts("#{e.class}: #{e.pretty_inspect}")
             warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
           end
+        end
+
+        def _valid_echo(host_list)
+          hosts = host_list
+          threads = []
+          hosts.each do |host|
+            threads << Thread.new {Ping.pingecho(host)}
+          end
+          threads.each_with_index do |t,i|
+              unless t.value
+                logger.info("Server dead: #{hosts[i]}")
+                hosts[i] = nil
+              else
+                logger.info("Server alive: #{hosts[i]}")
+              end
+          end
+          hosts.delete(nil)
+          threads.clear
+
+          hosts
         end
 
         def validate_echo
