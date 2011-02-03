@@ -1,13 +1,37 @@
+require 'ping'
+require 'thread'
+
 class RSUtils
-  def self.mk_rs_cache_dir(prefix=nil)
-    tmpdir = Dir.tmpdir
-    _prefix = prefix || "cap-rightscale"
-    begin
-      path = "#{tmpdir}/#{_prefix}-#{ENV['USER']}-#{rand(0x100000000).to_s(36)}"
-      Dir.mkdir(path, 0700)
-    rescue Errno::EEXIST
-      logger.warn(e)
-      exit(1)
+  class << self
+    def mk_rs_cache_dir(prefix=nil)
+      tmpdir = Dir.tmpdir
+      _prefix = prefix || "cap-rightscale"
+      begin
+        path = "#{tmpdir}/#{_prefix}-#{ENV['USER']}-#{rand(0x100000000).to_s(36)}"
+        Dir.mkdir(path, 0700)
+      rescue Errno::EEXIST
+        logger.warn(e)
+        exit(1)
+      end
     end
-  end
+
+    def valid_echo(host_list)
+      hosts = host_list
+      threads = []
+      hosts.each do |host|
+        threads << Thread.new {Ping.pingecho(host)}
+      end
+      threads.each_with_index do |t,i|
+          unless t.value
+            logger.info("Server dead: #{hosts[i]}")
+            hosts[i] = nil
+          else
+            logger.info("Server alive: #{hosts[i]}")
+          end
+      end
+      hosts.delete(nil)
+      threads.clear
+
+      hosts
+    end
 end

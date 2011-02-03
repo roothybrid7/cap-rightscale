@@ -1,5 +1,6 @@
 require 'cap-rightscale/utils/rs_utils.rb'
 require 'cap-rightscale/configuration/rightscale/resource'
+require 'cap-rightscale/configuration/rightscale/variable'
 require 'ping'
 require 'thread'
 
@@ -58,7 +59,6 @@ start = Time.now
 
         # Set rightscale's parameters
         _array_id = params[:array_id]
-
         params.delete(:array_id)  # remove rightscale's parameters
 
         host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
@@ -82,7 +82,7 @@ start = Time.now
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-          host_list = _valid_echo(host_list) if validate_echo
+          host_list = RSUtils.valid_echo(host_list) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -137,7 +137,7 @@ start = Time.now
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-          host_list = _valid_echo(host_list) if validate_echo
+          host_list = RSUtils.valid_echo(host_list) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -203,7 +203,7 @@ start = Time.now
               logger.info("Found server: #{hostname}(#{ip})")
               use_nickname ? hostname : ip
             end
-            host_list = _valid_echo(host_list) if validate_echo
+            host_list = RSUtils.valid_echo(host_list) if validate_echo
           end
 
           if host_list && host_list.size > 0
@@ -272,26 +272,6 @@ puts "Time: #{Time.now - start}"
             STDERR.puts("#{e.class}: #{e.pretty_inspect}")
             warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
           end
-        end
-
-        def _valid_echo(host_list)
-          hosts = host_list
-          threads = []
-          hosts.each do |host|
-            threads << Thread.new {Ping.pingecho(host)}
-          end
-          threads.each_with_index do |t,i|
-              unless t.value
-                logger.info("Server dead: #{hosts[i]}")
-                hosts[i] = nil
-              else
-                logger.info("Server alive: #{hosts[i]}")
-              end
-          end
-          hosts.delete(nil)
-          threads.clear
-
-          hosts
         end
 
         def validate_echo
