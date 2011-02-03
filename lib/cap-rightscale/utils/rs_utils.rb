@@ -15,7 +15,7 @@ class RSUtils
       end
     end
 
-    def valid_echo(host_list)
+    def valid_echo(host_list, logger)
       hosts = host_list
       threads = []
       hosts.each do |host|

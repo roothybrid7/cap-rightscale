@@ -81,7 +81,7 @@ start = Time.now
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-          host_list = RSUtils.valid_echo(host_list) if validate_echo
+          host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -136,7 +136,7 @@ start = Time.now
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
-          host_list = RSUtils.valid_echo(host_list) if validate_echo
+          host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -202,7 +202,7 @@ start = Time.now
               logger.info("Found server: #{hostname}(#{ip})")
               use_nickname ? hostname : ip
             end
-            host_list = RSUtils.valid_echo(host_list) if validate_echo
+            host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
           end
 
           if host_list && host_list.size > 0
