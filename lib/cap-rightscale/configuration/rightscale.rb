@@ -221,38 +221,36 @@ puts "Time: #{Time.now - start}"
 
         def get_server_cache(role)
            @lifetime ||= 86400
-           @server_cache ||= {}
-           c = caller.map {|x| /(.*?):(\d+)/ =~ x; $1}
-           c.delete(__FILE__)
+           server_cache = self.instance_variable_get("@#{role}_cache")
 
            begin
-             @cache_files ||= Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*#{role}")
+             cache_files = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*#{role}")
 
-             @cache_files.each do |c|
-               @server_cache.update(Marshal.load(open(c) {|f| f.read}))
-             end if @cache_files.size > 0 && @server_cache.empty?
-
-             return [] if @server_cache.empty? # No cache entry
+             if cache_files.size > 0 && !server_cache
+               c = Marshal.load(open(cache_files.first) {|f| f.read})
+               self.instance_variable_set("@#{role}_cache", c)
+             end
+             server_cache = self.instance_variable_get("@#{role}_cache")
+             return [] unless server_cache # No cache entry
 
              # get servers
-             if Time.now - @server_cache[role][:cache] > @lifetime
-               @server_cache.delete(role)
+             if Time.now - server_cache[role][:cache] > @lifetime
                server_list = []
-             elsif @server_cache[role][:servers]
-               server_list = @server_cache[role][:servers]
+             elsif server_cache[role][:servers]
+               server_list = server_cache[role][:servers]
              else
                server_list = []
              end
            rescue => e
-             return [] if @server_cache.empty?
+             return [] unless server_cache
            end
+
            server_list
         end
 
         def dump_server_cache(role, servers)
           h = {role => {:servers => servers, :cache => Time.now}}
-          cache = @server_cache.update(h) # update servers cache
-          obj_dump = Marshal.dump(cache)
+          obj_dump = Marshal.dump(h)
 
           # Get cache directory
           cache_dir = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*").first
