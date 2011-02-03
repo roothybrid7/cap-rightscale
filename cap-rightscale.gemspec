@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{cap-rightscale}
-  s.version = "0.2.4"
+  s.version = "0.2.5"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Satoshi Ohki"]
@@ -33,8 +33,10 @@ Gem::Specification.new do |s|
     "lib/cap-rightscale/configuration.rb",
     "lib/cap-rightscale/configuration/rightscale.rb",
     "lib/cap-rightscale/recipes.rb",
+    "lib/cap-rightscale/recipes/rightscale.rb",
     "lib/cap-rightscale/recipes/rightscale/cache.rb",
     "lib/cap-rightscale/utils/rs_utils.rb",
+    "rsapiconfig.yml.sample",
     "spec/cap-rightscale_spec.rb",
     "spec/spec_helper.rb"
   ]
