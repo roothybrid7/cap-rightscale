@@ -4,7 +4,7 @@ require 'ping'
 module Capistrano
   class Configuration
     module RightScale
-      attr_writer :validate_echo, :use_nickname, :use_public_ip
+      attr_writer :validate_echo, :use_nickname, :use_public_ip, :use_rs_cache
 
       def get_rs_confpath
         @rs_confpath ||= File.join(ENV['HOME'], ".rsconf", "rsapiconfig.yml")
@@ -55,20 +55,20 @@ start = Time.now
 
         params.delete(:array_id)  # remove rightscale's parameters
 
-        host_list = get_server_cache(role)  # Get cache
+        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          array = get_array(_array_id)
+          array = rs_array(_array_id)
           logger.info("querying rightscale for server_array #{array.nickname}...")
-          dept = get_deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
+          dept = rs_deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
           deployment_name = dept.nickname
           logger.info("Deployment #{deployment_name}:")
 
-          host_list = ServerArray.instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
+          host_list = rs_array_instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
             hostname << ".#{_domain}" if _domain
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
@@ -83,7 +83,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list)  # Dump cache
+            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
@@ -114,14 +114,14 @@ start = Time.now
         params.delete(:deployment)
         params.delete(:name_prefix) if params.has_key?(:name_prefix)
 
-        host_list = get_server_cache(role)  # Get cache
+        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          dept = get_deployment(_dept_id, :server_settings => 'true')
+          dept = rs_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers #{_name_prefix} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
           srvs = srvs.select {|s| /#{_name_prefix}/ =~ s[:nickname]} if _name_prefix
@@ -141,7 +141,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list)  # Dump cache
+            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
@@ -173,14 +173,14 @@ start = Time.now
         params.delete(:deployment)
         params.delete(:tags)
 
-        host_list = get_server_cache(role)  # Get cache
+        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          dept = get_deployment(_dept_id, :server_settings => 'true')
+          dept = rs_deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers matching tags #{_tags} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
 
@@ -211,7 +211,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list)  # Dump cache
+            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
@@ -225,13 +225,13 @@ puts "Time: #{Time.now - start}"
           return true
         end
 
-        def get_array(id)
+        def rs_array(id, params={})
           array = self.instance_variable_get("@array_#{id}")
 
           unless array
             connect
             begin
-              self.instance_variable_set("@array_#{id}", ServerArray.show(id))
+              self.instance_variable_set("@array_#{id}", ServerArray.show(id, params))
             rescue => e
               STDERR.puts("#{e.class}: #{e.pretty_inspect}")
               warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
@@ -249,7 +249,31 @@ puts "Time: #{Time.now - start}"
           array
         end
 
-        def get_deployment(id, params)
+        def rs_array_instances(id)
+          array_instances = self.instance_variable_get("@array_instances_#{id}")
+
+          unless array_instances
+            connect
+            begin
+              self.instance_variable_set("@array_instances_#{id}", ServerArray.instances(id))
+            rescue => e
+              STDERR.puts("#{e.class}: #{e.pretty_inspect}")
+              warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
+              exit(1)
+            end
+
+            unless ServerArray.status_code == 200
+              STDERR.puts("Errors: STATUS is NOT 200 OK")
+              warn(ServerArray.headers)
+              exit(1)
+            end
+
+            array_instances = self.instance_variable_get("@array_instances_#{id}")
+          end
+          array_instances
+        end
+
+        def rs_deployment(id, params={})
           dept = self.instance_variable_get("@deployment_#{id}")
 
           unless dept
@@ -279,8 +303,17 @@ puts "Time: #{Time.now - start}"
             @conn ||= RightResource::Connection.new do |c|
               c.login(:username => @auth["username"], :password => @auth["password"], :account => @auth["account"])
             end
-          rescue Errno::ENOENT => e
-            STDERR.puts("Cannot loaded RightScale Auth data!!:\nusername: foo@example.com\npassword: password\naccount: 22329\n")
+          rescue => e
+            auth_data = open(File.join(File.expand_path(File.dirname(__FILE__)), '/../../../rsapiconfig.yml.sample')) {|f| f.read}
+            STDERR.puts <<-"USAGE"
+Cannot load RightScale Auth data!!:
+  Put authfile:<rsapiconfig.yml> in <HOME>/.rsconf/
+    OR
+  Set param: set_rs_confpath <authfile_path>
+
+Authfile contents:
+#{auth_data}
+USAGE
             exit(1)
           end
           RightResource::Base.connection = @conn
@@ -349,6 +382,15 @@ puts "Time: #{Time.now - start}"
 
         def use_public_ip
           @use_public_ip ||= false
+        end
+
+        def use_rs_cache
+          if @use_rs_cache.nil? && ENV['RSCACHE']
+            env = ENV['RSCACHE'].downcase
+            @use_rs_cache = false if env == "false"
+          end
+          @use_rs_cache = true if @use_rs_cache.nil?
+          @use_rs_cache
         end
 
         def _domain
