@@ -4,6 +4,8 @@ require 'ping'
 module Capistrano
   class Configuration
     module RightScale
+      attr_writer :validate_echo, :use_nickname, :use_public_ip
+
       def get_rs_confpath
         @rs_confpath ||= File.join(ENV['HOME'], ".rsconf", "rsapiconfig.yml")
       end
@@ -12,17 +14,20 @@ module Capistrano
         @rs_confpath = path
       end
 
+      def rs_enable(*args)
+        args.each do |arg|
+          __send__("#{arg}=".to_sym, true) if respond_to?("#{arg}=".to_sym)
+        end
+      end
+
+      def rs_disable(*args)
+        args.each do |arg|
+          __send__("#{arg}=".to_sym, false) if respond_to?("#{arg}=".to_sym)
+        end
+      end
+
       def rs_cache_lifetime(time)
         @lifetime = time  # seconds
-      end
-
-      def validate_echo(bool=false)
-        @pingecho = bool
-      end
-
-      # register deploy host's /etc/hosts OR dns record(replace 's/ #/-000/' to ServerArray name)
-      def use_nickname(bool=false)
-        @use_nick = bool
       end
 
       def domainname(domain)
@@ -40,6 +45,7 @@ module Capistrano
       def server_array(role, params)
         return [] unless check_role(role)
         raise ArgumentError, ":array_id is not included in params!![#{params}]" unless params.has_key?(:array_id)
+        @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1}.first, ".*")
 
 start = Time.now
         logger.info("SETTING ROLE: #{role}")
@@ -65,13 +71,13 @@ start = Time.now
           host_list = ServerArray.instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
             hostname << ".#{_domain}" if _domain
-            ip = instance[:private_ip_address]
-            if @pingecho
+            ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
+            if validate_echo
               next unless Ping.pingecho(ip)
             end
 
             logger.info("Found server: #{hostname}(#{ip})")
-            enable_hostname ? hostname : ip
+            use_nickname ? hostname : ip
           end
           host_list.delete(nil)
 
@@ -96,6 +102,7 @@ puts "Time: #{Time.now - start}"
       def nickname(role, params)
         return [] unless check_role(role)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
+        @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1}.first, ".*")
 
 start = Time.now
         logger.info("SETTING ROLE: #{role}")
@@ -122,13 +129,13 @@ start = Time.now
           host_list = srvs.map do |server|
             hostname = server[:nickname]
             hostname << ".#{_domain}" if _domain
-            ip = server[:settings][:private_ip_address]
-            if @pingecho
+            ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
+            if validate_echo
               next unless Ping.pingecho(ip)
             end
 
             logger.info("Found server: #{hostname}(#{ip})")
-            enable_hostname ? hostname : ip
+            use_nickname ? hostname : ip
           end
           host_list.delete(nil)
 
@@ -154,6 +161,7 @@ puts "Time: #{Time.now - start}"
         return [] unless check_role(role)
         raise ArgumentError, ":tags is not included in params!![#{params}]" unless params.has_key?(:tags)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
+        @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1}.first, ".*")
 
 start = Time.now
         logger.info("SETTING ROLE: #{role}")
@@ -190,13 +198,13 @@ start = Time.now
             host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
               hostname = server[:nickname]
               hostname << ".#{_domain}" if _domain
-              ip = server[:settings][:private_ip_address]
-              if @pingecho
+              ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
+              if validate_echo
                 next unless Ping.pingecho(ip)
               end
 
               logger.info("Found server: #{hostname}(#{ip})")
-              enable_hostname ? hostname : ip
+              use_nickname ? hostname : ip
             end
             host_list.delete(nil)
           end
@@ -211,12 +219,32 @@ puts "Time: #{Time.now - start}"
       end
 
       private
+        def check_role(role)
+          return false if ENV['HOSTS']
+          return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
+          return true
+        end
+
         def get_array(id)
           array = self.instance_variable_get("@array_#{id}")
 
           unless array
             connect
-            array = self.instance_variable_set("@array_#{id}", ServerArray.show(id))
+            begin
+              self.instance_variable_set("@array_#{id}", ServerArray.show(id))
+            rescue => e
+              STDERR.puts("#{e.class}: #{e.pretty_inspect}")
+              warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
+              exit(1)
+            end
+
+            unless ServerArray.status_code == 200
+              STDERR.puts("Errors: STATUS is NOT 200 OK")
+              warn(ServerArray.headers)
+              exit(1)
+            end
+
+            array = self.instance_variable_get("@array_#{id}")
           end
           array
         end
@@ -226,27 +254,46 @@ puts "Time: #{Time.now - start}"
 
           unless dept
             connect
-            self.instance_variable_set("@deployment_#{id}", Deployment.show(id, params))
+            begin
+              self.instance_variable_set("@deployment_#{id}", Deployment.show(id, params))
+            rescue => e
+              STDERR.puts("#{e.class}: #{e.pretty_inspect}")
+              warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
+              exit(1)
+            end
+
+            unless Deployment.status_code == 200
+              STDERR.puts("Errors: STATUS is NOT 200 OK")
+              warn(Deployment.headers)
+              exit(1)
+            end
+
             dept = self.instance_variable_get("@deployment_#{id}")
           end
           dept
         end
 
         def connect
-          @auth ||= open(get_rs_confpath) {|f| YAML.load(f)}
-          @conn ||= RightResource::Connection.new do |c|
-            c.login(:username => @auth["username"], :password => @auth["password"], :account => @auth["account"])
+          begin
+            @auth ||= open(get_rs_confpath) {|f| YAML.load(f)}
+            @conn ||= RightResource::Connection.new do |c|
+              c.login(:username => @auth["username"], :password => @auth["password"], :account => @auth["account"])
+            end
+          rescue Errno::ENOENT => e
+            STDERR.puts("Cannot loaded RightScale Auth data!!:\nusername: foo@example.com\npassword: password\naccount: 22329\n")
+            exit(1)
           end
-
           RightResource::Base.connection = @conn
         end
 
         def get_server_cache(role)
            @lifetime ||= 86400
            @server_cache ||= {}
+           c = caller.map {|x| /(.*?):(\d+)/ =~ x; $1}
+           c.delete(__FILE__)
 
            begin
-             @cache_files ||= Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{stage}*")
+             @cache_files ||= Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*")
 
              @cache_files.each do |c|
                @server_cache.update(Marshal.load(open(c) {|f| f.read}))
@@ -281,28 +328,31 @@ puts "Time: #{Time.now - start}"
             cache_dir = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*").first
             exit if cache_dir.nil?
           end
-          cache_file = File.join(cache_dir, stage ? "#{stage}" : "default")
+          cache_file = File.join(cache_dir, @caller)
 
           begin
             open(cache_file, "w") {|f| f.write(obj_dump)}
           rescue => e
-            logger.error("#{e.class}: #{e.pretty_inspect}")
-            logger.debug {"Backtrace:\n#{e.backtrace.pretty_inspect}"}
+            STDERR.puts("#{e.class}: #{e.pretty_inspect}")
+            warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
           end
         end
 
-        def enable_hostname
-          @use_nick ||= false
+        def validate_echo
+          @validate_echo ||= false
+        end
+
+        # register deploy host's /etc/hosts OR dns record(replace 's/ #/-000/' to ServerArray name)
+        def use_nickname
+          @use_nickname ||= false
+        end
+
+        def use_public_ip
+          @use_public_ip ||= false
         end
 
         def _domain
           @domain || nil
-        end
-
-        def check_role(role)
-          return false if ENV['HOSTS']
-          return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
-          return true
         end
     end
   end
