@@ -69,7 +69,13 @@ module Capistrano
       end
 
       def tag(params)
-        tags = Tag.search(params)  # not stored
+        begin
+          tags = Tag.search(params)  # not stored
+        rescue => e
+          STDERR.puts("#{e.class}: #{e.pretty_inspect}")
+          warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
+          exit(1)
+        end
 
         unless Tag.status_code == 200
           STDERR.puts("Errors: STATUS is NOT 200 OK")
