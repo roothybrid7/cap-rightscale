@@ -1,10 +1,11 @@
-require 'cap-rightscale/utils/rs_utils.rb'
+require 'cap-rightscale/utils/rs_utils'
 require 'cap-rightscale/configuration/rightscale/resource'
 
 module Capistrano
   class Configuration
     module RightScale
       attr_writer :validate_echo, :use_nickname, :use_public_ip, :use_rs_cache
+      attr_accessor :domainname
 
       def get_rs_instance
         @rs_instance ||= Capistrano::RightScale::Resource.instance
@@ -32,10 +33,6 @@ module Capistrano
 
       def rs_cache_lifetime(time)
         @lifetime = time  # seconds
-      end
-
-      def domainname(domain)
-        @domain = domain
       end
 
       # Get RightScale Server Array
@@ -73,7 +70,7 @@ start = Time.now
 
           host_list = get_rs_instance.__send__(:array_instances, array.id).select {|i| i[:state] == "operational"}.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
-            hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
+            hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
 
             logger.info("Found server: #{hostname}(#{ip})")
@@ -128,7 +125,7 @@ start = Time.now
 
           host_list = srvs.map do |server|
             hostname = server[:nickname]
-            hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
+            hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
             logger.info("Found server: #{hostname}(#{ip})")
@@ -194,7 +191,7 @@ start = Time.now
           if found_ids.size > 0
             host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
               hostname = server[:nickname]
-              hostname << ".#{_domain}" if _domain && hostname.match(/#{_domain}/).nil?
+              hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
               ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
               logger.info("Found server: #{hostname}(#{ip})")
@@ -289,10 +286,6 @@ puts "Time: #{Time.now - start}"
           end
           @use_rs_cache = true if @use_rs_cache.nil?
           @use_rs_cache
-        end
-
-        def _domain
-          @domain || nil
         end
     end
   end
