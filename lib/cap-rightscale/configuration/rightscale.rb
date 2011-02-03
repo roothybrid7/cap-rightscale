@@ -226,7 +226,7 @@ puts "Time: #{Time.now - start}"
            c.delete(__FILE__)
 
            begin
-             @cache_files ||= Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*")
+             @cache_files ||= Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*#{role}")
 
              @cache_files.each do |c|
                @server_cache.update(Marshal.load(open(c) {|f| f.read}))
@@ -261,7 +261,7 @@ puts "Time: #{Time.now - start}"
             cache_dir = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*").first
             exit if cache_dir.nil?
           end
-          cache_file = File.join(cache_dir, @caller)
+          cache_file = File.join(cache_dir, "#{@caller}-#{role}")
 
           begin
             open(cache_file, "w") {|f| f.write(obj_dump)}
