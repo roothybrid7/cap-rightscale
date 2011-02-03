@@ -23,7 +23,7 @@ class RSUtils
       end
       threads.each_with_index do |t,i|
         unless t.value
-          logger.info("Server dead: #{hosts[i]}")
+          logger.info("Server dead or Firewall blocking: #{hosts[i]}")
           hosts[i] = nil
         else
           logger.info("Server alive: #{hosts[i]}")
