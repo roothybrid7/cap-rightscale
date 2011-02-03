@@ -8,8 +8,9 @@ namespace :rightscale do
   namespace :cache do
     task :clear do
       logger.info("Clear cache all")
-      pp Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/*")
-      FileUtils.rm(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/*"), {:force => true})
+      prefix = ENV['STAGE'] ? ENV['STAGE'] : ""
+      pp Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*")
+      FileUtils.rm(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*"), {:force => true})
     end
   end
 end
