@@ -1,6 +1,5 @@
 require 'cap-rightscale/utils/rs_utils.rb'
 require 'cap-rightscale/configuration/rightscale/resource'
-require 'cap-rightscale/configuration/rightscale/variable'
 require 'ping'
 require 'thread'
 
