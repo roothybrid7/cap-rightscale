@@ -26,6 +26,7 @@ module Capistrano
 
            # get servers
            if Time.now - server_cache[role][:cache] > lifetime
+             STDERR.puts("The cache of server list has expired.")
              server_list = []
            elsif server_cache[role][:servers]
              server_list = server_cache[role][:servers]
