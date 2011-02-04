@@ -5,8 +5,9 @@ require 'cap-rightscale/configuration/rightscale/resource'
 module Capistrano
   class Configuration
     module RightScale
+      attr_reader :domainname
       attr_writer :validate_echo, :use_nickname, :use_public_ip, :use_rs_cache
-      attr_accessor :domainname
+      attr_accessor :rs_cache_lifetime
 
       def get_rs_instance
         @rs_instance ||= Capistrano::RightScale::Resource.instance
@@ -37,7 +38,11 @@ module Capistrano
       end
 
       def rs_cache_lifetime(time)
-        @lifetime = time  # seconds
+        get_cache_instance.lifetime = time  # seconds
+      end
+
+      def set_domainname(domain)
+        @domainname = domain
       end
 
       # Get RightScale Server Array
@@ -219,56 +224,6 @@ puts "Time: #{Time.now - start}"
           return false if ENV['HOSTS']
           return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
           return true
-        end
-
-        def get_server_cache(role)
-           @lifetime ||= 86400
-           server_cache = self.instance_variable_get("@#{role}_cache")
-
-           begin
-             cache_files = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{@caller}*#{role}")
-
-             if cache_files.size > 0 && !server_cache
-               c = Marshal.load(open(cache_files.first) {|f| f.read})
-               self.instance_variable_set("@#{role}_cache", c)
-             end
-             server_cache = self.instance_variable_get("@#{role}_cache")
-             return [] unless server_cache # No cache entry
-
-             # get servers
-             if Time.now - server_cache[role][:cache] > @lifetime
-               server_list = []
-             elsif server_cache[role][:servers]
-               server_list = server_cache[role][:servers]
-             else
-               server_list = []
-             end
-           rescue => e
-             return [] unless server_cache
-           end
-
-           server_list
-        end
-
-        def dump_server_cache(role, servers)
-          h = {role => {:servers => servers, :cache => Time.now}}
-          obj_dump = Marshal.dump(h)
-
-          # Get cache directory
-          cache_dir = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*").first
-          if cache_dir.nil?
-            RSUtils.mk_rs_cache_dir
-            cache_dir = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*").first
-            exit if cache_dir.nil?
-          end
-          cache_file = File.join(cache_dir, "#{@caller}-#{role}")
-
-          begin
-            open(cache_file, "w") {|f| f.write(obj_dump)}
-          rescue => e
-            STDERR.puts("#{e.class}: #{e.pretty_inspect}")
-            warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
-          end
         end
 
         def validate_echo
