@@ -39,13 +39,17 @@ module Capistrano
           self.instance_variable_set("@#{method}_#{id}", api.call)
         rescue => e
           STDERR.puts("#{e.class}: #{e.pretty_inspect}")
-          warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
+          STDERR.puts("Backtrace:\n#{e.backtrace.pretty_inspect}")
           exit(1)
         end
 
-        unless RightResource::Base.status_code == 200
-          STDERR.puts("Errors: STATUS is NOT 200 OK")
-          warn(RightResource::Base.headers)
+        status_code = RightResource::Base.status_code
+        if status_code.nil?
+          STDERR.puts("Errors: Unknown Errors")
+          exit(1)
+        elsif status_code != 200
+          STDERR.puts("Errors: HTTP STATUS CODE is #{status_code}")
+          STDERR.puts(RightResource::Base.headers)
           exit(1)
         end
 
@@ -73,15 +77,18 @@ module Capistrano
           tags = Tag.search(params)  # not stored
         rescue => e
           STDERR.puts("#{e.class}: #{e.pretty_inspect}")
-          warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
-          raise
+          STDERR.puts("Backtrace:\n#{e.backtrace.pretty_inspect}")
+          exit(1)
         end
 
-        unless Tag.status_code == 200
-          message = "Errors: STATUS is NOT 200 OK"
-          STDERR.puts(message)
-          warn(Tag.headers)
-          raise message
+        status_code = Tag.status_code
+        if status_code.nil?
+          STDERR.puts("Errors: Unknown Errors")
+          exit(1)
+        elsif status_code != 200
+          STDERR.puts("Errors: HTTP STATUS CODE is #{status_code}")
+          STDERR.puts(Tag.headers)
+          exit(1)
         end
         tags
       end
