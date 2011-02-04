@@ -55,7 +55,7 @@ start = Time.now
 
         host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
-        if host_list && host_list.size > 0
+        if host_list.size > 0
           [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
@@ -84,7 +84,7 @@ start = Time.now
           end
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
-          if host_list && host_list.size > 0
+          if host_list.size > 0
             [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
@@ -141,7 +141,7 @@ start = Time.now
           end
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
-          if host_list && host_list.size > 0
+          if host_list.size > 0
             [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
@@ -154,7 +154,8 @@ puts "Time: #{Time.now - start}"
       # Get servers matching tags in deployment
       # === Parameters
       # * _role_ - Capistrano role symbol (ex. :app, :web, :db)
-      # * _params[:tags]_ - ex. :tags => "xx_db:role=master", "xx_web:role", "xx_lb" (RightScale tags partial matchs 'namespece:predicate=value')
+      # * _params[:tags]_ - ex. :tags => "xx_db:role=master",
+      #     "xx_web:role", "xx_lb" (RightScale tags partial matchs 'namespece:predicate=value')
       # * _params[:deployment]_ - ex. :deployment => 1[https://my.rightscale.com/deployments/{id}]
       # * _params[:xxx]_ - ex. :user => "www", :port => 2345, etc...
       # === Examples
@@ -171,7 +172,7 @@ start = Time.now
 
         host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
-        if host_list && host_list.size > 0
+        if host_list.size > 0
           [:deployment, :tags, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
@@ -202,7 +203,7 @@ start = Time.now
 
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
-          if host_list && host_list.size > 0
+          if host_list.size > 0
             [:deployment, :tags, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache

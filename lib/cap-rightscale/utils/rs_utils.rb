@@ -10,7 +10,7 @@ class RSUtils
         path = "#{tmpdir}/#{_prefix}-#{ENV['USER']}-#{rand(0x100000000).to_s(36)}"
         Dir.mkdir(path, 0700)
       rescue Errno::EEXIST
-        warn(e)
+        STEDERR.puts(e)
         exit(1)
       end
     end
@@ -32,7 +32,7 @@ class RSUtils
       hosts.delete(nil)
       threads.clear
 
-      hosts
+      hosts || []
     end
   end
 end
