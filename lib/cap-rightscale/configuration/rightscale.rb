@@ -56,7 +56,7 @@ start = Time.now
         host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
         if host_list && host_list.size > 0
-          [:array_id, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+          [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
@@ -67,6 +67,12 @@ start = Time.now
           deployment_name = dept.nickname
           logger.info("Deployment #{deployment_name}:")
           srvs = get_rs_instance.array_instances(array.id).select {|i| i[:state] == "operational"}
+
+          if params.include?(:except_tags)
+            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
+            return [] if srvs.size == 0  # Not found servers matching tag
+          end
 
           host_list = srvs.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
@@ -79,7 +85,7 @@ start = Time.now
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
-            [:array_id, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+            [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
@@ -107,19 +113,26 @@ start = Time.now
 
         host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
-        if host_list && host_list.size > 0
-          [:deployment, :name_prefix, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+        if host_list.size > 0
+          [:deployment, :name_prefix, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
+
           # Request RightScale API
           dept = get_rs_instance.deployment(params[:deployment], :server_settings => 'true')
           logger.info("querying rightscale for servers #{params[:name_prefix]} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
           srvs = srvs.select {|s| /#{params[:name_prefix]}/ =~ s[:nickname]} if params[:name_prefix]
 
+          if params.include?(:except_tags)
+            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
+            return [] if srvs.size == 0  # Not found servers matching tag
+          end
+
           host_list = srvs.map do |server|
-            hostname = server[:nickname]
+            hostname = server[:nickname].sub(/ #[0-9]+$/, "-%03d" % server[:nickname].match(/[0-9]+$/).to_s.to_i)
             hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
@@ -129,7 +142,7 @@ start = Time.now
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
-            [:deployment, :name_prefix, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+            [:array_id, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
@@ -159,7 +172,7 @@ start = Time.now
         host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
         if host_list && host_list.size > 0
-          [:deployment, :tags, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+          [:deployment, :tags, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
@@ -169,16 +182,16 @@ start = Time.now
           srvs = dept.servers.select {|s| s[:state] == "operational"}
 
           ts_params = {:resource_type => "ec2_instance", :tags => [params[:tags]]}
-          ts = servers_with_tags_in_deployment(params[:deployment], ts_params)
-          return [] if ts.size == 0  # Not found tag
+          srvs = servers_with_tags_set(params[:deployment], srvs, ts_params, :intersect)
+          return [] if srvs.size == 0  # Not found servers matching tag
 
-          # diff servers in deployment and servers matching tags in deployment
-          srvs_ids = srvs.map {|s| s[:href].match(/[0-9]+$/).to_s}
-          ts_ids = ts.map {|s| s.href.sub("/current", "").match(/[0-9]+$/).to_s}
-          found_ids = srvs_ids & ts_ids
-          return [] if found_ids.size == 0  # Not found servers matching tag
+          if params.include?(:except_tags)
+            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
+            return [] if srvs.size == 0  # Not found servers matching tag
+          end
 
-          host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
+          host_list = srvs.map do |server|
             hostname = server[:nickname]
             hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
@@ -186,10 +199,11 @@ start = Time.now
             logger.info("Found server: #{hostname}(#{ip})")
             use_nickname ? hostname : ip
           end
+
           host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
-            [:deployment, :tags, :except_tag].each {|key| params.delete(key)}  # remove rightscale's parameters
+            [:deployment, :tags, :except_tags].each {|key| params.delete(key)}  # remove rightscale's parameters
             role(role, params) { host_list }
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
@@ -211,6 +225,34 @@ puts "Time: #{Time.now - start}"
 
         def get_cache_instance
           @cache_instance ||= Capistrano::RightScale::Cache.instance
+        end
+
+        # set(union, intersect, minus) servers in deployment and servers matching tags in deployment
+        def servers_with_tags_set(deployment_id, servers, tags_params, operator)
+          servers_ids = servers.map {|s| s[:href].match(/[0-9]+$/).to_s}
+
+          ts = servers_with_tags_in_deployment(deployment_id, tags_params)
+          return [] if ts.size == 0
+
+          ts_ids = ts.map {|s| s.href.sub("/current", "").match(/[0-9]+$/).to_s}
+          case operator
+          when :intersect then
+            oper_ids = servers_ids & ts_ids
+          when :minus then
+            oper_ids = servers_ids - ts_ids
+          end
+          return [] if oper_ids.size == 0
+
+          servers.select {|s| oper_ids.include?(s[:href].match(/[0-9]+$/).to_s)} || []
+        end
+
+        def intersect_servers_with_tags(deployment, servers, tags_params, tags_api)
+          ts = tags_api.call
+          return [] if ts.size == 0
+
+          ts_ids = ts.map {|s| s.href.sub("/current", "").match(/[0-9]+$/).to_s}
+          intersect_ids = servers_ids & ts_ids
+          intersect_ids.size > 0 ? intersect_ids : []
         end
 
         def servers_with_tags_in_deployment(deployment_id, params)
