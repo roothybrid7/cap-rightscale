@@ -77,8 +77,9 @@ start = Time.now
           dept = get_rs_instance.deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
           deployment_name = dept.nickname
           logger.info("Deployment #{deployment_name}:")
+          srvs = get_rs_instance.array_instances(array.id).select {|i| i[:state] == "operational"}
 
-          host_list = get_rs_instance.array_instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
+          host_list = srvs.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
             hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
@@ -184,31 +185,29 @@ start = Time.now
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          dept = get_rs_instance.__send__(:deployment, _dept_id, :server_settings => 'true')
+          dept = get_rs_instance.deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers matching tags #{_tags} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
 
           ts_params = {:resource_type => "ec2_instance", :tags => [_tags]}
-          ts = get_rs_instance.__send__(:tag, ts_params).
-            select {|s| s.state == "operational"}.
-            select {|s| s.deployment_href.match(/[0-9]+$/).to_s == _dept_id.to_s}
+          ts = _tag(_dept_id, ts_params)
+          return [] if ts.size == 0  # Not found tag
 
           # diff servers in deployment and servers matching tags in deployment
           srvs_ids = srvs.map {|s| s[:href].match(/[0-9]+$/).to_s}
           ts_ids = ts.map {|s| s.href.sub("/current", "").match(/[0-9]+$/).to_s}
           found_ids = srvs_ids & ts_ids
+          return [] if found_ids.size == 0  # Not found servers matching tag
 
-          if found_ids.size > 0
-            host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
-              hostname = server[:nickname]
-              hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
-              ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
+          host_list = srvs.select {|s| found_ids.include?(s[:href].match(/[0-9]+$/).to_s)}.map do |server|
+            hostname = server[:nickname]
+            hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
+            ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
-              logger.info("Found server: #{hostname}(#{ip})")
-              use_nickname ? hostname : ip
-            end
-            host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
+            logger.info("Found server: #{hostname}(#{ip})")
+            use_nickname ? hostname : ip
           end
+          host_list = RSUtils.valid_echo(host_list, logger) if validate_echo
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
@@ -224,6 +223,17 @@ puts "Time: #{Time.now - start}"
           return false if ENV['HOSTS']
           return false if ENV['ROLES'] && ENV['ROLES'].split(',').include?("#{role}") == false
           return true
+        end
+
+        def _tag(deployment_id, params)
+          begin
+            servers = get_rs_instance.tag(params).
+              select {|s| s.state == "operational"}.
+              select {|s| s.deployment_href.match(/[0-9]+$/).to_s == deployment_id.to_s}
+          rescue => e
+            {}
+          end
+          servers
         end
 
         def validate_echo

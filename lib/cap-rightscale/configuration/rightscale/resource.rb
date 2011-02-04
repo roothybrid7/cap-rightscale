@@ -74,13 +74,14 @@ module Capistrano
         rescue => e
           STDERR.puts("#{e.class}: #{e.pretty_inspect}")
           warn("Backtrace:\n#{e.backtrace.pretty_inspect}")
-          exit(1)
+          raise
         end
 
         unless Tag.status_code == 200
-          STDERR.puts("Errors: STATUS is NOT 200 OK")
+          message = "Errors: STATUS is NOT 200 OK"
+          STDERR.puts(message)
           warn(Tag.headers)
-          exit(1)
+          raise message
         end
         tags
       end
