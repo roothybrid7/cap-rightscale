@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{cap-rightscale}
-  s.version = "0.4.3"
+  s.version = "0.4.4"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Satoshi Ohki"]
-  s.date = %q{2011-02-04}
+  s.date = %q{2011-02-05}
   s.description = %q{Capistrano extension that maps RightScale parameters to Roles.}
   s.email = %q{roothybrid7@gmail.com}
   s.extra_rdoc_files = [
