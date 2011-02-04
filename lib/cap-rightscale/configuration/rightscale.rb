@@ -1,4 +1,5 @@
 require 'cap-rightscale/utils/rs_utils'
+require 'cap-rightscale/configuration/rightscale/cache'
 require 'cap-rightscale/configuration/rightscale/resource'
 
 module Capistrano
@@ -9,6 +10,10 @@ module Capistrano
 
       def get_rs_instance
         @rs_instance ||= Capistrano::RightScale::Resource.instance
+      end
+
+      def get_cache_instance
+        @cache_instance ||= Capistrano::RightScale::Cache.instance
       end
 
       def get_rs_confpath
@@ -55,20 +60,20 @@ start = Time.now
         _array_id = params[:array_id]
         params.delete(:array_id)  # remove rightscale's parameters
 
-        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
+        host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          array = get_rs_instance.__send__(:array, _array_id)
+          array = get_rs_instance.array(_array_id)
           logger.info("querying rightscale for server_array #{array.nickname}...")
-          dept = get_rs_instance.__send__(:deployment, array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
+          dept = get_rs_instance.deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
           deployment_name = dept.nickname
           logger.info("Deployment #{deployment_name}:")
 
-          host_list = get_rs_instance.__send__(:array_instances, array.id).select {|i| i[:state] == "operational"}.map do |instance|
+          host_list = get_rs_instance.array_instances(array.id).select {|i| i[:state] == "operational"}.map do |instance|
             hostname = instance[:nickname].sub(/ #[0-9]+$/, "-%03d" % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
             hostname << ".#{domainname}" if domainname && hostname.match(/#{domainname}/).nil?
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
@@ -80,7 +85,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
+            get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
@@ -111,14 +116,14 @@ start = Time.now
         params.delete(:deployment)
         params.delete(:name_prefix) if params.has_key?(:name_prefix)
 
-        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
+        host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
           role(role, params) { host_list }  # set cache to role()
         else
           # Request RightScale API
-          dept = get_rs_instance.__send__(:deployment, _dept_id, :server_settings => 'true')
+          dept = get_rs_instance.deployment(_dept_id, :server_settings => 'true')
           logger.info("querying rightscale for servers #{_name_prefix} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
           srvs = srvs.select {|s| /#{_name_prefix}/ =~ s[:nickname]} if _name_prefix
@@ -135,7 +140,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
+            get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
@@ -167,7 +172,7 @@ start = Time.now
         params.delete(:deployment)
         params.delete(:tags)
 
-        host_list = use_rs_cache ? get_server_cache(role) : []  # Get cache
+        host_list = use_rs_cache ? get_cache_instance.load_server_cache(role, @caller) : []  # Get cache
 
         if host_list && host_list.size > 0
           logger.info("restore cache of servers:\n#{host_list.pretty_inspect}")
@@ -202,7 +207,7 @@ start = Time.now
 
           if host_list && host_list.size > 0
             role(role, params) { host_list }
-            dump_server_cache(role, host_list) if use_rs_cache  # Dump cache
+            get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
 puts "Time: #{Time.now - start}"
