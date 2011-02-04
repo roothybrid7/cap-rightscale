@@ -69,7 +69,7 @@ start = Time.now
           srvs = get_rs_instance.array_instances(array.id).select {|i| i[:state] == "operational"}
 
           if params.include?(:except_tags)
-            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            except_tags_params = {:resource_type => "ec2_instance", :tags => params[:except_tags]}
             srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
             return [] if srvs.size == 0  # Not found servers matching tag
           end
@@ -126,7 +126,7 @@ start = Time.now
           srvs = srvs.select {|s| /#{params[:name_prefix]}/ =~ s[:nickname]} if params[:name_prefix]
 
           if params.include?(:except_tags)
-            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            except_tags_params = {:resource_type => "ec2_instance", :tags => params[:except_tags]}
             srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
             return [] if srvs.size == 0  # Not found servers matching tag
           end
@@ -181,12 +181,12 @@ start = Time.now
           logger.info("querying rightscale for servers matching tags #{params[:tags]} in deployment #{dept.nickname}...")
           srvs = dept.servers.select {|s| s[:state] == "operational"}
 
-          ts_params = {:resource_type => "ec2_instance", :tags => [params[:tags]]}
+          ts_params = {:resource_type => "ec2_instance", :tags => params[:tags]}
           srvs = servers_with_tags_set(params[:deployment], srvs, ts_params, :intersect)
           return [] if srvs.size == 0  # Not found servers matching tag
 
           if params.include?(:except_tags)
-            except_tags_params = {:resource_type => "ec2_instance", :tags => [params[:except_tags]]}
+            except_tags_params = {:resource_type => "ec2_instance", :tags => params[:except_tags]}
             srvs = servers_with_tags_set(params[:deployment], srvs, except_tags_params, :minus)
             return [] if srvs.size == 0  # Not found servers matching tag
           end
