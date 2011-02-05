@@ -21,12 +21,12 @@ module Capistrano
           auth_data = open(File.join(File.expand_path(
             File.dirname(__FILE__)), '/../../../../rsapiconfig.yml.sample')) {|f| f.read}
           STDERR.puts <<-"USAGE"
-Cannot load RightScale Auth data!!:
+Cannot load RightScale API credentials!!:
   Put authfile:<rsapiconfig.yml> in <HOME>/.rsconf/
     OR
   Set param: set_rs_confpath <authfile_path>
 
-Authfile contents:
+Authfile contents: specify your Rightscale API credentials
 #{auth_data}
 USAGE
           exit(1)

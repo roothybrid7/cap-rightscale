@@ -1,6 +1,20 @@
 = cap-rightscale
 
-Description goes here.
+Capistrano extension that maps RightScale parameters to Roles
+
+    # config/deploy.rb
+    require 'rubygems'
+    require 'cap-rightscale'
+    require 'cap-rightscale/recipes'
+
+    SERVER_ARRAY_ID = 1
+    DEPLOYMENT_ID = 1
+
+    # set roles
+    nickname :web, :name_prefix => "proxy", :deployment => DEPLOYMENT_ID
+    server_array :app, :array_id => SERVER_ARRAY_ID
+    tag :dbm, :tags => "xx_db:role=master", :deployment => DEPLOYMENT_ID, :no_release => true
+    tag :dbs, :tags => "xx_db:role=slave", :deployment => DEPLOYMENT_ID
 
 == Contributing to cap-rightscale
  
