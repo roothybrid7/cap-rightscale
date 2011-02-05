@@ -90,7 +90,7 @@ start = Time.now
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
-puts "Time: #{Time.now - start}"
+logger.debug("Time: #{Time.now - start}")
         host_list || []
       end
 
@@ -147,7 +147,7 @@ start = Time.now
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
-puts "Time: #{Time.now - start}"
+logger.debug("Time: #{Time.now - start}")
         host_list || []
       end
 
@@ -209,7 +209,7 @@ start = Time.now
             get_cache_instance.dump_server_cache(role, host_list, @caller) if use_rs_cache  # Dump cache
           end
         end
-puts "Time: #{Time.now - start}"
+logger.debug("Time: #{Time.now - start}")
         host_list || []
       end
 

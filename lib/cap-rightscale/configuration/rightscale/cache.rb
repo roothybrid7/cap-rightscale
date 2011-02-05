@@ -12,32 +12,31 @@ module Capistrano
       end
 
       def load_server_cache(role, prefix=nil)
-         server_cache = self.instance_variable_get("@#{role}_cache")
+        server_cache = self.instance_variable_get("@#{role}_cache")
 
-         begin
-           cache_files = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*#{role}.cache")
+        begin
+          cache_files = Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*#{role}.cache")
 
-           if cache_files.size > 0 && !server_cache
-             c = Marshal.load(open(cache_files.first) {|f| f.read})
-             self.instance_variable_set("@#{role}_cache", c)
-           end
-           server_cache = self.instance_variable_get("@#{role}_cache")
-           return [] unless server_cache # No cache entry
+          if cache_files.size > 0 && !server_cache
+            c = Marshal.load(open(cache_files.first) {|f| f.read})
+            self.instance_variable_set("@#{role}_cache", c)
+          end
+          server_cache = self.instance_variable_get("@#{role}_cache")
+          return [] unless server_cache # No cache entry
 
-           # get servers
-           if Time.now - server_cache[role][:cache] > lifetime
-             STDERR.puts("The cache of server list has expired.")
-             server_list = []
-           elsif server_cache[role][:servers]
-             server_list = server_cache[role][:servers]
-           else
-             server_list = []
-           end
-         rescue => e
-           return [] unless server_cache
-         end
+          # get servers
+          if Time.now - server_cache[role][:cache] > lifetime
+            server_list = []
+          elsif server_cache[role][:servers]
+            server_list = server_cache[role][:servers]
+          else
+            server_list = []
+          end
+        rescue => e
+          return [] unless server_cache
+        end
 
-         server_list
+        server_list
       end
 
       def dump_server_cache(role, servers, prefix=nil)

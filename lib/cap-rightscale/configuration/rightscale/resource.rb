@@ -18,16 +18,17 @@ module Capistrano
             c.login(:username => @auth["username"], :password => @auth["password"], :account => @auth["account"])
           end
         rescue => e
-          auth_data = open(File.join(File.expand_path(File.dirname(__FILE__)), '/../../../../rsapiconfig.yml.sample')) {|f| f.read}
+          auth_data = open(File.join(File.expand_path(
+            File.dirname(__FILE__)), '/../../../../rsapiconfig.yml.sample')) {|f| f.read}
           STDERR.puts <<-"USAGE"
-  Cannot load RightScale Auth data!!:
-    Put authfile:<rsapiconfig.yml> in <HOME>/.rsconf/
-      OR
-    Set param: set_rs_confpath <authfile_path>
+Cannot load RightScale Auth data!!:
+  Put authfile:<rsapiconfig.yml> in <HOME>/.rsconf/
+    OR
+  Set param: set_rs_confpath <authfile_path>
 
-  Authfile contents:
-  #{auth_data}
-  USAGE
+Authfile contents:
+#{auth_data}
+USAGE
           exit(1)
         end
         RightResource::Base.connection = @conn
@@ -58,17 +59,20 @@ module Capistrano
       end
 
       def array(id)
-        _instance_variable_set(:array, id, lambda {ServerArray.show(id)}) unless self.instance_variable_get("@array_#{id}")
+        _instance_variable_set(:array, id, lambda {ServerArray.show(id)}) unless
+          self.instance_variable_get("@array_#{id}")
         self.instance_variable_get("@array_#{id}")
       end
 
       def array_instances(id)
-        _instance_variable_set(:array_instances, id, lambda {ServerArray.instances(id)}) unless self.instance_variable_get("@array_instances_#{id}")
+        _instance_variable_set(:array_instances, id,
+          lambda {ServerArray.instances(id)}) unless self.instance_variable_get("@array_instances_#{id}")
         self.instance_variable_get("@array_instances_#{id}")
       end
 
       def deployment(id, params)
-        _instance_variable_set(:deployment, id, lambda {Deployment.show(id, params)}) unless self.instance_variable_get("@deployment_#{id}")
+        _instance_variable_set(:deployment, id,
+          lambda {Deployment.show(id, params)}) unless self.instance_variable_get("@deployment_#{id}")
         self.instance_variable_get("@deployment_#{id}")
       end
 
