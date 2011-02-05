@@ -39,5 +39,5 @@ pkg
 #.\#*
 #
 # For vim:
-#*.swp
+*.swp
 tags
