@@ -2,7 +2,7 @@ module Capistrano
   class Configuration
     module RightScale
       attr_writer :use_rs_cache
-      attr_accessor :validate_echo, :use_nickname, :use_public_ip, :rs_confpath, :rs_lifetime, :rs_domain
+      attr_accessor :validate_echo, :use_nickname, :use_public_ip, :rs_confpath, :rs_lifetime, :rs_domain, :validate_resolv
 
       def rs_array_number_format(format)
         @array_num_format = format
@@ -21,6 +21,9 @@ module Capistrano
       # === Parameters
       # * _role_ - Capistrano role symbol (ex. :app, :web, :db)
       # * _params[:array_id]_ - ex. :array_id => 1[https://my.rightscale.com/server_arrays/{id}]
+      # * _params[:domain]_ domain name(user defined) - ex. :domain => "example.com"
+      # * _params[:except_tags]_ except servers matching tags
+      #   - ex. :except_tags => ["xx_app:state=broken", "xx_app:state=out_of_service"]
       # * _params[:xxx]_ - ex. :user => "www", :port => 2345, etc...
       # === Examples
       #   array_id = 1
@@ -31,19 +34,19 @@ start = Time.now
         return [] unless check_role(role)
         raise ArgumentError, ":array_id is not included in params!![#{params}]" unless params.has_key?(:array_id)
         @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1}.first, ".*")
-        @rs_array_keys ||= [:array_id, :except_tags]
+        @rs_array_keys ||= [:array_id, :domain, :except_tags]
 
-        logger.info("SETTING ROLE: #{role}")
+        logger.debug("SETTING ROLE: #{role}")
 
         servers = use_rs_cache ? role_with_load_cache(role, @rs_array_keys, params) : []
 
         if servers.size == 0
           # Request RightScale API
           array = rs_instance.array(params[:array_id])
-          logger.info("querying rightscale for server_array #{array.nickname}...")
+          logger.debug("querying rightscale for server_array #{array.nickname}...")
           deployment = rs_instance.deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
           deployment_name = deployment.nickname
-          logger.info("Deployment #{deployment_name}:")
+          logger.debug("Deployment #{deployment_name}:")
           servers = rs_instance.array_instances(array.id).select {|i| i[:state] == "operational" }
           servers = servers_with_tags_set(
             deployment.id, servers, params[:except_tags], :minus) if params.include?(:except_tags)
@@ -51,17 +54,19 @@ start = Time.now
           servers = servers.map do |instance|
             hostname = instance[:nickname].sub(
               / #[0-9]+$/, array_number_format % instance[:nickname].match(/[0-9]+$/).to_s.to_i)
-            hostname << ".#{rs_domain}" if rs_domain && hostname.match(/#{rs_domain}/).nil?
+            dom = params[:domain] || rs_domain
+            hostname += ".#{dom}" if dom
             ip = use_public_ip ? instance[:ip_address] : instance[:private_ip_address]
 
-            logger.info("Found server: #{hostname}(#{ip})")
+            logger.debug("Found server: #{instance[:nickname]}(#{ip})")
             use_nickname ? hostname : ip
           end
+          servers = RSUtils.valid_resolv(servers, logger) if validate_resolv && use_nickname
           servers = RSUtils.valid_echo(servers, logger) if validate_echo
 
           role_with_dump_cache(role, servers, @rs_array_keys, params, use_rs_cache) if servers.size > 0
         end
-logger.debug("Time: #{Time.now - start}")
+logger.trace("Time: #{Time.now - start}")
         servers || []
       end
 
@@ -70,6 +75,9 @@ logger.debug("Time: #{Time.now - start}")
       # * _role_ - Capistrano role symbol (ex. :app, :web, :db)
       # * _params[:name_prefix]_ - ex. :name_prefix => "db" (RightScale instance nickname)
       # * _params[:deployment]_ - ex. :deployment => 1[https://my.rightscale.com/deployments/{id}]
+      # * _params[:domain]_ domain name(user defined) - ex. :domain => "example.com"
+      # * _params[:except_tags]_ except servers matching tags
+      #   - ex. :except_tags => ["xx_app:state=broken", "xx_app:state=out_of_service"]
       # * _params[:xxx]_ - ex. :user => "www", :port => 2345, etc...
       # === Examples
       #   deployment_id = 1
@@ -80,16 +88,16 @@ start = Time.now
         return [] unless check_role(role)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
         @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1 }.first, ".*")
-        @rs_server_keys ||= [:array_id, :name_prefix, :except_tags]
+        @rs_server_keys ||= [:array_id, :name_prefix, :domain, :except_tags]
 
-        logger.info("SETTING ROLE: #{role}")
+        logger.debug("SETTING ROLE: #{role}")
 
         servers = use_rs_cache ? role_with_load_cache(role, @rs_server_keys, params) : []
 
         if servers.size == 0
           # Request RightScale API
           deployment = rs_instance.deployment(params[:deployment], :server_settings => 'true')
-          logger.info(
+          logger.debug(
             "querying rightscale for servers #{params[:name_prefix]} in deployment #{deployment.nickname}...")
           servers = deployment.servers.select {|s| s[:state] == "operational" }
           servers = servers.select {|s| /#{params[:name_prefix]}/ =~ s[:nickname] } if params[:name_prefix]
@@ -98,30 +106,36 @@ start = Time.now
 
           servers = servers.map do |server|
             hostname = server[:nickname]
-            hostname << ".#{rs_domain}" if rs_domain && hostname.match(/#{rs_domain}/).nil?
+            dom = params[:domain] || rs_domain
+            hostname += ".#{dom}" if dom
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
-            logger.info("Found server: #{hostname}(#{ip})")
+            logger.debug("Found server: #{server[:nickname]}(#{ip})")
             use_nickname ? hostname : ip
           end
+          servers = RSUtils.valid_resolv(servers, logger) if validate_resolv && use_nickname
           servers = RSUtils.valid_echo(servers, logger) if validate_echo
 
           role_with_dump_cache(role, servers, @rs_server_keys, params, use_rs_cache) if servers.size > 0
         end
-logger.debug("Time: #{Time.now - start}")
+logger.trace("Time: #{Time.now - start}")
         servers || []
       end
 
       # Get servers matching tags in deployment
       # === Parameters
       # * _role_ - Capistrano role symbol (ex. :app, :web, :db)
+      # * _params[:deployment]_ - ex. :deployment => 1[https://my.rightscale.com/deployments/{id}]
       # * _params[:tags]_ - ex. :tags => "xx_db:role=master",
       #     "xx_web:role", "xx_lb" (RightScale tags partial matchs 'namespece:predicate=value')
-      # * _params[:deployment]_ - ex. :deployment => 1[https://my.rightscale.com/deployments/{id}]
+      # * _params[:name_prefix]_ - ex. :name_prefix => "db" (RightScale instance nickname)
+      # * _params[:domain]_ domain name(user defined) - ex. :domain => "example.com"
+      # * _params[:except_tags]_ except servers matching tags
+      #   - ex. :except_tags => ["xx_app:state=broken", "xx_app:state=out_of_service"]
       # * _params[:xxx]_ - ex. :user => "www", :port => 2345, etc...
       # === Examples
       #   deployment_id = 1
-      #   nickname :db, :tags => "xx_db:role", :deployment => deployment_id, :port => 3306
+      #   nickname :db, :name_prefix => "db",  :tags => "xx_db:role", :deployment => deployment_id, :port => 3306
       def tag(role, params)
 start = Time.now
         _init unless initialized?
@@ -129,17 +143,19 @@ start = Time.now
         raise ArgumentError, ":tags is not included in params!![#{params}]" unless params.has_key?(:tags)
         raise ArgumentError, ":deployment is not included in params!![#{params}]" unless params.has_key?(:deployment)
         @caller ||= File.basename(caller.map {|x| /(.*?):(\d+)/ =~ x; $1 }.first, ".*")
-        @rs_tag_keys ||= [:deployment, :tags, :except_tags]
+        @rs_tag_keys ||= [:deployment, :tags, :name_prefix, :domain, :except_tags]
 
-        logger.info("SETTING ROLE: #{role}")
+        logger.debug("SETTING ROLE: #{role}")
 
         servers = use_rs_cache ? role_with_load_cache(role, @rs_tag_keys, params) : []
 
         if servers.size == 0
           # Request RightScale API
           deployment = rs_instance.deployment(params[:deployment], :server_settings => 'true')
-          logger.info("querying rightscale for servers matching tags #{params[:tags]} in deployment #{deployment.nickname}...")
+          logger.debug("querying rightscale for servers #{params[:name_prefix]} " +
+            "matching tags #{params[:tags]} in deployment #{deployment.nickname}...")
           servers = deployment.servers.select {|s| s[:state] == "operational" }
+          servers = servers.select {|s| /#{params[:name_prefix]}/ =~ s[:nickname] } if params[:name_prefix]
 
           servers = servers_with_tags_set(params[:deployment], servers, params[:tags], :intersect)
           if params.include?(:except_tags) && servers.size > 0
@@ -148,18 +164,19 @@ start = Time.now
 
           servers = servers.map do |server|
             hostname = server[:nickname]
-            hostname << ".#{rs_domain}" if rs_domain && hostname.match(/#{rs_domain}/).nil?
+            dom = params[:domain] || rs_domain
+            hostname += ".#{dom}" if dom
             ip = use_public_ip ? server[:settings][:ip_address] : server[:settings][:private_ip_address]
 
-            logger.info("Found server: #{hostname}(#{ip})")
+            logger.debug("Found server: #{server[:nickname]}(#{ip})")
             use_nickname ? hostname : ip
           end
-
+          servers = RSUtils.valid_resolv(servers, logger) if validate_resolv && use_nickname
           servers = RSUtils.valid_echo(servers, logger) if validate_echo
 
           role_with_dump_cache(role, servers, @rs_tag_keys, params, use_rs_cache) if servers.size > 0
         end
-logger.debug("Time: #{Time.now - start}")
+logger.trace("Time: #{Time.now - start}")
         servers || []
       end
 
@@ -212,7 +229,7 @@ logger.debug("Time: #{Time.now - start}")
 
         if servers.size > 0
           rs_keys.each {|key| params.delete(key) }  # remove rightscale's parameters
-          servers.each {|s| logger.info("restore server from cache: #{s}") }
+          servers.each {|s| logger.debug("restore server from cache: #{s}") }
           role(role, params) { servers }
         end
 
@@ -269,7 +286,7 @@ logger.debug("Time: #{Time.now - start}")
         @use_rs_cache
       end
 
-      private :validate_echo, :use_nickname, :use_public_ip, :use_rs_cache
+      private :validate_echo, :use_nickname, :use_public_ip, :use_rs_cache, :validate_resolv
     end
   end
 end

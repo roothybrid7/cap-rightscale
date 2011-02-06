@@ -1,5 +1,6 @@
-require 'ping'
 require 'thread'
+require 'resolv'
+require 'ping'
 
 class RSUtils
   class << self
@@ -15,18 +16,38 @@ class RSUtils
       end
     end
 
+    def valid_resolv(servers, logger)
+      hosts = servers
+      @dns ||= Resolv::DNS.new
+
+      hosts = hosts.map do |host|
+        result = @dns.getaddress(host) rescue nil
+        if result.nil?
+          logger.debug("ResolvError: No address for #{host}")
+          host = nil
+        else
+          logger.debug("Resolved server: #{host} => #{result}")
+        end
+        host
+      end
+      hosts.delete(nil)
+
+      hosts || []
+    end
+
     def valid_echo(servers, logger)
       hosts = servers
       threads = []
+
       hosts.each do |host|
-        threads << Thread.new {Ping.pingecho(host)}
+        threads << Thread.new(host) {|h| Ping.pingecho(h) }
       end
       threads.each_with_index do |t,i|
         unless t.value
-          logger.info("Server dead or Network problem: #{hosts[i]}")
+          logger.debug("Server dead or Network problem: #{hosts[i]}")
           hosts[i] = nil
         else
-          logger.info("Server alive: #{hosts[i]}")
+          logger.debug("Server alive: #{hosts[i]}")
         end
       end
       hosts.delete(nil)

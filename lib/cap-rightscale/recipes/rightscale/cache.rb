@@ -7,10 +7,9 @@ namespace :rs do
   desc "Clear rightscale's server list cache"
   namespace :cache do
     task :clear do
-      logger.info("Clear cache all")
-      prefix = ENV['STAGE'] ? ENV['STAGE'] : ""
-      logger.trace(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*").each {|f| f } || "")
-      FileUtils.rm(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/#{prefix}*"), {:force => true})
+      logger.debug("Clear cache all")
+      logger.trace(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/*").each {|f| f } || "")
+      FileUtils.rm(Dir.glob("#{Dir.tmpdir}/cap-rightscale-#{ENV['USER']}-*/*"), {:force => true})
     end
   end
 end
