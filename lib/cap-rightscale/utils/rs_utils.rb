@@ -15,15 +15,15 @@ class RSUtils
       end
     end
 
-    def valid_echo(host_list, logger)
-      hosts = host_list
+    def valid_echo(servers, logger)
+      hosts = servers
       threads = []
       hosts.each do |host|
         threads << Thread.new {Ping.pingecho(host)}
       end
       threads.each_with_index do |t,i|
         unless t.value
-          logger.info("Server dead or Firewall blocking: #{hosts[i]}")
+          logger.info("Server dead or Network problem: #{hosts[i]}")
           hosts[i] = nil
         else
           logger.info("Server alive: #{hosts[i]}")
