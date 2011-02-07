@@ -151,6 +151,22 @@ Using RightScale Nickname, How to DNS hostname for ec2 instances:
     # set domain each role(priority over <tt>set :rs_domain</tt>)
     nickname :web, :nickname => "lb", :domain => "ec2.com"
 
+
+Instance nickname in Server Array is <tt><ServerArray name> #number</tt>
+
+    # ServerArray name: prod-web
+    prod-web #1   # <= instance nickname
+
+cap-rightscale replace instance nickname in Server Array to update dns hostname for your dns server. Default format is "%d"(example: web #1 => web1).
+
+
+Use <tt>rs_array_number_format</tt> to replace nickname format:
+
+    # config/deploy.rb
+    rs_array_number_format "%03d"   # web #1 => web001
+    rs_array_number_format "-%d"    # web #1 => web-1
+
+
 === Validate
 
 Using ping and name resolv, validate host(except invalid host).
