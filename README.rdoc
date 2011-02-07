@@ -157,7 +157,7 @@ Instance nickname in Server Array is <tt><ServerArray name> #number</tt>
     # ServerArray name: prod-web
     prod-web #1   # <= instance nickname
 
-cap-rightscale replace instance nickname in Server Array to update dns hostname for your dns server. Default format is "%d"(example: web #1 => web1).
+cap-rightscale replace instance nickname in Server Array to use dns hostname for your dns server. Default format is "%d"(example: web #1 => web1).
 
 
 Use <tt>rs_array_number_format</tt> to replace nickname format:
