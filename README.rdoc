@@ -1,23 +1,230 @@
 = cap-rightscale
 
 Capistrano extension that maps RightScale parameters to Roles
+[RightScale](http://www.rightscale.com)
+
+== Installation
+
+Install the packages
+
+For Debian/Ubuntu:
+
+    $ apt-get install ruby ruby-dev rubygems
+
+For RHEL5 (probably needs the EPEL repository enabled):
+
+    $ yum install ruby ruby-devel rubygems
+
+For MacOSX(MacPorts):
+
+    $ port install ruby rb-rubygems
+
+
+Install the cap-rightscale:
+
+    $ gem install cap-rightscale
+
+== Settings
+
+To prepare, go info the root directory of that project and run capify:
+
+    $ cd <project_dir>
+    $ capify .
+
+Configure Capfile(example deploy.rb):
 
     # config/deploy.rb
     require 'rubygems'
     require 'cap-rightscale'
     require 'cap-rightscale/recipes'
 
-    SERVER_ARRAY_ID = 1
-    DEPLOYMENT_ID = 1
+    DEPLOYMENT_ID = 12345       # RightScale Deployment ID
+    SERVER_ARRAY_ID = 6789      # RightScale ServerArray ID
 
     # set roles
     nickname :web, :name_prefix => "proxy", :deployment => DEPLOYMENT_ID
     server_array :app, :array_id => SERVER_ARRAY_ID
-    tag :dbm, :tags => "xx_db:role=master", :deployment => DEPLOYMENT_ID, :no_release => true
-    tag :dbs, :tags => "xx_db:role=slave", :deployment => DEPLOYMENT_ID
+    tag :dbm, :tags => "xx_db:role=master", :deployment => DEPLOYMENT_ID
+    tag :dbs, :tags => "xx_db:role=slave", :deployment => DEPLOYMENT_ID, :no_release => true
+
+Put RightScale API Credential file into <tt><HOME>/.rsconf/rsapiconfig.yml</tt>
+
+    # <HOME>/.rsconf/rsapiconfig.yml
+    username: user@example.com
+    password: yourpassword
+    account: 1
+
+Run testing:
+
+    $ cap rs:none
+
+
+For more help with Capistrano, see this: https://github.com/capistrano/capistrano/wiki
+
+
+=== Roles
+
+In order to define role, RightScale nickname and deployment mappings:
+
+    nickname :web, :name_prefix => "proxy", :deployment => 12345
+    # => role :web, ["proxyXXX", ... in deployment ID:12345]
+
+ServerArray mappings:
+
+    server_array :app, :array_id => 6789, :backup => true
+    # => role(:app, :backup => true) { ["apXXX", ... in serverarray ID:6789] }
+
+Machine tags and deployment mappings:
+
+    tag :dbm, :name_prefix => "db", :tags => ["xx_db:env=prod", "xx_db:role=master"], :deployment => 12345, :primary => true
+    # => role(:dbm, :primary => true) { ["dbXXX", ... in deployment ID:12345] }
+
+=== RightScale API Credential
+
+see the below site:
+
+{Authentication}[http://support.rightscale.com/12-Guides/03-RightScale_API/RightScale_API_Examples/Authentication] - RightScale Cloud Management Support Portal
+
+You must authenticate to use the RightScale API, Make sure to set your own login/password(used to login to RightScale dashboard) and account number(the tail end of the Dashboard URL: Settings > Account)
+
+Put Authentication file described in RightScale API credentials into <tt><HOME>/.rsconf/rsapiconfig.yml</tt>
+
+Or, You can define filepath:
+
+    # config/deploy.rb
+    set :rs_confpath, "/project/config/rs_auth.yml"
+
+
+=== Caches
+
+These functions require RightScale api calls, which are slow. On the first call, Write a cache file in the temp directory.
+Default cache lifetime is 86400 seconds(1day) each role.
+
+modified cache life time:
+
+    # config/deploy.rb
+    set :rs_lifetime, 86400 * 7  # 1week
+
+
+This can be disabled with ENV variable: <tt>RS_CACHE=false</tt> , <tt>set :rs_lifetime 0</tt> OR <tt>rs_disable :use_rs_cache</tt> in the Capfile.
+
+    $ cap invoke COMMAND='hostname' RS_CACHE=false
+
+    # disable cache config/deploy.rb
+    set :rs_lifetime 0
+    # the other way
+    rs_disable :use_rs_cache
+
+Conversely, to use cache to infinity with <tt>set :rs_lifetime -1</tt>.
+
+    # config/deploy.rb
+    set :rs_lifetime -1
+
+Cache clear task(needs after modifying the Capfile):
+
+    $ cap rs:cache:clear
+    $ cap rs:cc
+
+=== Server name to associate with the role
+
+Default name is Amazon EC2 local IP address, This can be changed according to the parameter.
+
+Use EC2 public IP address:
+
+    # config/deploy.rb
+    rs_enable :use_public_ip
+
+
+Use RightScale nickname(use as name to resolve for host in <tt>/etc/hosts</tt> or dns record entry).
+This takes priority over ip address.
+Using RightScale Nickname, How to DNS hostname for ec2 instances:
+* {"Developing RightScripts - RightScale Cloud Management Support Portal"}[http://support.rightscale.com/12-Guides/Dashboard_Users_Guide/Design/RightScripts/Actions/Developing_RightScripts#Document_your_RightScript_and_its_Inputs]
+* {"Environment Inputs - RightScale Cloud Management Support Portal"}[http://support.rightscale.com/15-References/Lists/List_of_Environment_Inputs#RightScale_%28RS%29.3a]
+* {"HowTo update DNS hostnames automatically for your Amazon EC2 instances | MDLog:/sysadmin"}[http://www.ducea.com/2009/06/01/howto-update-dns-hostnames-automatically-for-your-amazon-ec2-instances/]
+
+
+
+    # config/deploy.rb
+    rs_enable :use_nickname         # RightScale nickname
+    set :rs_domain, "ec2.int.com"   # set subdomain managed by your dns server zone(option: default ref <tt>search</tt> in <tt>/etc/resolv.conf</tt>)
+
+    # set domain each role(priority over <tt>set :rs_domain</tt>)
+    nickname :web, :nickname => "lb", :domain => "ec2.com"
+
+=== Validate
+
+Using ping and name resolv, validate host(except invalid host).
+
+* <tt>rs_enable :validate_echo</tt>: In case you want to except hang-up instance
+* <tt>rs_enable :validate_resolv</tt>: In case you want to except host can not be resolved
+
+
+    # config/deploy.rb
+    rs_enable :validate_echo, :validate_resolv
+
+== nickname
+
+Definition:
+
+    nickname(role, params)
+
+=== Arguments
+
+==== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    nickname :app, :name_prefix => "ap", :deployment => 12345, :user => "www"
+    nickname :db, :name_prefix => "db", :deployment => 12345, :except_tags => "xx_db:state=broken"
+    nickname :mem, :name_prefix => "mem", :deployment => 12345, :except_tags => ["xx_mem:state=out_of_service"]
+
+== server_array
+
+Definition:
+
+    server_array(role, params)
+
+=== Arguments
+
+==== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    server_array :app, :array_id => 6789, :user => "www"
+    server_array :mem, :array_id => 4321, :except_tags => "xx_mem:state=broken", :domain => "ec2.int.com"
+
+== tag
+
+Definition:
+
+    tag(role, params)
+
+=== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    tag :dbm, :deployment => 12345, :name_prefix => "db", :tags => "xx_db:role=master", :primary => true
+    tag :dbs, :deployment => 12345, :tags => ["xx_db:role=slave", "xx_db:master"]   # matching tag "xx_db:master=<master_ip>"
+
+== Output message
+
+To suppress output as possible(-v option):
+
+    $ cap -v shell
+    $ cap -v invoke COMMAND='cat /var/log/httpd/access_log' 2>/tmp/collect_httpd_access_log
+
 
 == Contributing to cap-rightscale
- 
+
 * Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet
 * Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it
 * Fork the project
