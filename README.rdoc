@@ -111,14 +111,14 @@ This can be disabled with ENV variable: <tt>RS_CACHE=false</tt> , <tt>set :rs_li
     $ cap invoke COMMAND='hostname' RS_CACHE=false
 
     # disable cache config/deploy.rb
-    set :rs_lifetime 0
+    set :rs_lifetime, 0
     # the other way
     rs_disable :use_rs_cache
 
 Conversely, to use cache to infinity with <tt>set :rs_lifetime -1</tt>.
 
     # config/deploy.rb
-    set :rs_lifetime -1
+    set :rs_lifetime, -1
 
 Cache clear task(needs after modifying the Capfile):
 
