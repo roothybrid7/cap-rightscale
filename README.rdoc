@@ -9,15 +9,18 @@ Install the packages
 
 For Debian/Ubuntu:
 
-    $ apt-get install ruby ruby-dev rubygems
+    $ apt-get install ruby ruby-dev
+    $ apt-get install rubygems  (if not installed)
 
 For RHEL5 (probably needs the EPEL repository enabled):
 
-    $ yum install ruby ruby-devel rubygems
+    $ yum install ruby ruby-devel
+    $ yum install rubygems (if not installed)
 
 For MacOSX(MacPorts):
 
-    $ port install ruby rb-rubygems
+    $ port install ruby
+    $ port install rb-rubygems (if not installed)
 
 
 Install the cap-rightscale:
