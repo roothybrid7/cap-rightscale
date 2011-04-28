@@ -1,0 +1,260 @@
+= cap-rightscale
+
+RightScaleを使用したインスタンスを取得するためのCapistrano拡張
+
+[RightScale](http://www.rightscale.com)
+
+== インストール
+
+パッケージのインストール
+
+For Debian/Ubuntu:
+
+    $ apt-get install ruby ruby-dev
+    $ apt-get install rubygems  (インストールされていない場合)
+
+For RHEL5 (probably needs the EPEL repository enabled):
+
+    $ yum install ruby ruby-devel
+    $ yum install rubygems (インストールされていない場合)
+
+For MacOSX(MacPorts):
+
+    $ port install ruby
+    $ port install rb-rubygems (インストールされていない場合)
+
+
+cap-rightscaleのインストール:
+
+    $ gem install cap-rightscale
+
+== 設定
+
+プロジェクトのルートディレクトリに移動して capify を実行:
+
+    $ cd <project_dir>
+    $ capify .
+
+Capfileの設定(例 deploy.rb):
+
+    # config/deploy.rb
+    require 'rubygems'
+    require 'cap-rightscale'
+    require 'cap-rightscale/recipes'
+
+    DEPLOYMENT_ID = 12345       # RightScale Deployment ID
+    SERVER_ARRAY_ID = 6789      # RightScale ServerArray ID
+
+    # set roles
+    nickname :web, :name_prefix => "proxy", :deployment => DEPLOYMENT_ID
+    server_array :app, :array_id => SERVER_ARRAY_ID
+    tag :dbm, :tags => "xx_db:role=master", :deployment => DEPLOYMENT_ID
+    tag :dbs, :tags => "xx_db:role=slave", :deployment => DEPLOYMENT_ID, :no_release => true
+
+RightScale API 認証情報記述したファイルを <tt><HOME>/.rsconf/rsapiconfig.yml</tt> に配置
+
+    # <HOME>/.rsconf/rsapiconfig.yml
+    username: user@example.com
+    password: yourpassword
+    account: 1
+
+テスト実行:
+
+    $ cap rs:none
+
+
+Capistranoについてのヘルプ: https://github.com/capistrano/capistrano/wiki
+
+
+=== Roles
+
+roleを定義するには、 RightScaleのnicknameのプレフィックスとdeploymentを指定する:
+
+    nickname :web, :name_prefix => "proxy", :deployment => 12345
+    # => role :web, ["proxyXXX", ... in deployment ID:12345]
+
+ServerArrayの場合:
+
+    server_array :app, :array_id => 6789, :backup => true
+    # => role(:app, :backup => true) { ["apXXX", ... in serverarray ID:6789] }
+
+RightScale tagを指定した場合:
+
+    tag :dbm, :name_prefix => "db", :tags => ["xx_db:env=prod", "xx_db:role=master"], :deployment => 12345, :primary => true
+    # => role(:dbm, :primary => true) { ["dbXXX", ... in deployment ID:12345] }
+
+=== RightScale API 認証情報
+
+下記のサイト参照:
+
+{Authentication}[http://support.rightscale.com/12-Guides/03-RightScale_API/RightScale_API_Examples/Authentication] - RightScale Cloud Management Support Portal
+
+RightScale APIを使用するためには認証が必要で、 ログインユーザ、パスワード(RightScale dashboardのログインに使用しているもの)とアカウント番号(Dashboardの右記URLの末尾の番号: Settings > Account)
+
+RightScale APIの認証情報が記載された認証ファイルを <tt><HOME>/.rsconf/rsapiconfig.yml</tt> に配置
+
+もしくは、ファイルパスを記述する:
+
+    # config/deploy.rb
+    set :rs_confpath, "/project/config/rs_auth.yml"
+
+
+=== キャッシュ
+
+使用しているRightScale apiリクエストは、とても遅い。 初回リクエスト時に、テンポラリのディレクトリにキャッシュファイルを作成するようにしている。
+roleごとに生成し、デフォルトのキャッシュタイムは86400秒(1日)。
+
+キャッシュタイム変更:
+
+    # config/deploy.rb
+    set :rs_lifetime, 86400 * 7  # 1week
+
+
+環境変数で無効にする <tt>RS_CACHE=false</tt> , <tt>set :rs_lifetime 0</tt> または Capfileで無効にする <tt>rs_disable :use_rs_cache</tt>
+
+    $ cap invoke COMMAND='hostname' RS_CACHE=false
+
+    # disable cache config/deploy.rb
+    set :rs_lifetime, 0
+    # the other way
+    rs_disable :use_rs_cache
+
+逆に、キャッシュタイムを無期限にする <tt>set :rs_lifetime -1</tt>.
+
+    # config/deploy.rb
+    set :rs_lifetime, -1
+
+キャッシュクリア(Capfileを変更した場合は必ず実行する必要がある):
+
+    $ cap rs:cache:clear
+    $ cap rs:cc
+
+=== roleに指定するサーバ名
+
+デフォルトではAmazon EC2 local IPアドレスで、パラメータを指定することで変更可能。
+
+EC2 public IPアドレスを使用:
+
+    # config/deploy.rb
+    rs_enable :use_public_ip
+
+
+RightScale nicknameを使用する(名前解決を使用 <tt>/etc/hosts</tt> または dnsレコード)
+これは、IPアドレスより優先的に使用する。
+RightScale Nicknameを使用するには、 ec2 instancesのDNSホスト名設定方法参照:
+* {"Developing RightScripts - RightScale Cloud Management Support Portal"}[http://support.rightscale.com/12-Guides/Dashboard_Users_Guide/Design/RightScripts/Actions/Developing_RightScripts#Document_your_RightScript_and_its_Inputs]
+* {"Environment Inputs - RightScale Cloud Management Support Portal"}[http://support.rightscale.com/15-References/Lists/List_of_Environment_Inputs#RightScale_%28RS%29.3a]
+* {"HowTo update DNS hostnames automatically for your Amazon EC2 instances | MDLog:/sysadmin"}[http://www.ducea.com/2009/06/01/howto-update-dns-hostnames-automatically-for-your-amazon-ec2-instances/]
+
+
+
+    # config/deploy.rb
+    rs_enable :use_nickname         # RightScale nickname
+    set :rs_domain, "ec2.int.com"   # set subdomain managed by your dns server zone(option: default ref <tt>search</tt> in <tt>/etc/resolv.conf</tt>)
+
+    # set domain each role(priority over <tt>set :rs_domain</tt>)
+    nickname :web, :nickname => "lb", :domain => "ec2.com"
+
+
+ServerArrayのInstance名は、<tt><ServerArray name> #number</tt>が付与される
+
+    # ServerArray name: prod-web
+    prod-web #1   # <= instance nickname
+
+Cap-rightscaleはServerArrayのinstance名をDNSホスト名に置き換えるように設定できる。
+デフォルトのフォーマットは "%d"(例: web #1 => web1).
+
+
+<tt>rs_array_number_format</tt>で、置換フォーマットを指定:
+
+    # config/deploy.rb
+    rs_array_number_format "%03d"   # web #1 => web001
+    rs_array_number_format "-%d"    # web #1 => web-1
+
+
+=== Validate
+
+ホストのvalidateは、pingと名前解決が使える。(無効なホストを除外するために)
+
+* <tt>rs_enable :validate_echo</tt>: ハングアップしたホストを除外
+* <tt>rs_enable :validate_resolv</tt>: 名前解決できないホストを除外
+
+
+    # config/deploy.rb
+    rs_enable :validate_echo, :validate_resolv
+
+== nickname
+
+Definition:
+
+    nickname(role, params)
+
+=== Arguments
+
+==== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    nickname :app, :name_prefix => "ap", :deployment => 12345, :user => "www"
+    nickname :db, :name_prefix => "db", :deployment => 12345, :except_tags => "xx_db:state=broken"
+    nickname :mem, :name_prefix => "mem", :deployment => 12345, :except_tags => ["xx_mem:state=out_of_service"]
+
+== server_array
+
+Definition:
+
+    server_array(role, params)
+
+=== Arguments
+
+==== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    server_array :app, :array_id => 6789, :user => "www"
+    server_array :mem, :array_id => 4321, :except_tags => "xx_mem:state=broken", :domain => "ec2.int.com"
+
+== tag
+
+Definition:
+
+    tag(role, params)
+
+=== role
+
+Capistrano role paramter(:app, :web, :db)
+
+=== params
+
+Example:
+    tag :dbm, :deployment => 12345, :name_prefix => "db", :tags => "xx_db:role=master", :primary => true
+    tag :dbs, :deployment => 12345, :tags => ["xx_db:role=slave", "xx_db:master"]   # matching tag "xx_db:master=<master_ip>"
+
+== Output message
+
+メッセージ出力の抑制(-v option):
+
+    $ cap -v shell
+    $ cap -v invoke COMMAND='cat /var/log/httpd/access_log' 2>/tmp/collect_httpd_access_log
+
+
+== Contributing to cap-rightscale
+
+* Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet
+* Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it
+* Fork the project
+* Start a feature/bugfix branch
+* Commit and push until you are happy with your contribution
+* Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
+* Please try not to mess with the Rakefile, version, or history. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.
+
+== Copyright
+
+Copyright (c) 2011 Satoshi Ohki. See LICENSE.txt for
+further details.
