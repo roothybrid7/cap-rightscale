@@ -101,7 +101,7 @@ RightScale APIの認証情報が記載された認証ファイルを <tt><HOME>/
 
 === キャッシュ
 
-使用しているRightScale apiリクエストは、とても遅い。 初回リクエスト時に、テンポラリのディレクトリにキャッシュファイルを作成するようにしている。
+RightScale apiリクエストは、とても遅い。 初回リクエスト時に、テンポラリのディレクトリにキャッシュファイルを作成するようにしている。
 roleごとに生成し、デフォルトのキャッシュタイムは86400秒(1日)。
 
 キャッシュタイム変更:
@@ -110,7 +110,7 @@ roleごとに生成し、デフォルトのキャッシュタイムは86400秒(1
     set :rs_lifetime, 86400 * 7  # 1week
 
 
-環境変数で無効にする <tt>RS_CACHE=false</tt> , <tt>set :rs_lifetime 0</tt> または Capfileで無効にする <tt>rs_disable :use_rs_cache</tt>
+環境変数で無効にする <tt>RS_CACHE=false</tt>、または Capfileで無効にする <tt>set :rs_lifetime 0</tt>、<tt>rs_disable :use_rs_cache</tt>
 
     $ cap invoke COMMAND='hostname' RS_CACHE=false
 
