@@ -44,7 +44,7 @@ start = Time.now
           # Request RightScale API
           array = rs_instance.array(params[:array_id])
           logger.debug("querying rightscale for server_array #{array.nickname}...")
-          deployment = rs_instance.deployment(array.deployment_href.match(/[0-9]+$/).to_s, :server_settings => 'true')
+          deployment = rs_instance.deployment(array.attributes[:deployment_href].match(/[0-9]+$/).to_s, {})
           deployment_name = deployment.nickname
           logger.debug("Deployment #{deployment_name}:")
           servers = rs_instance.array_instances(array.id).select {|i| i[:state] == "operational" }
