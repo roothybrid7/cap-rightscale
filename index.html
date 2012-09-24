@@ -1,0 +1,328 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Cap-rightscale by roothybrid7</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>Cap-rightscale</h1>
+        <p>Capistrano extension that maps RightScale parameters to Roles</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/roothybrid7/cap-rightscale" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/roothybrid7/cap-rightscale/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/roothybrid7/cap-rightscale/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h1>cap-rightscale</h1>
+
+<p>Capistrano extension that maps RightScale parameters to Roles
+<a href="http://www.rightscale.com">RightScale</a></p>
+
+<h2>Installation</h2>
+
+<p>Install the packages</p>
+
+<p>For Debian/Ubuntu:</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>apt-get install ruby ruby-dev
+<span class="nv">$ </span>apt-get install rubygems  <span class="c"># (if not installed)</span>
+</pre></div>
+
+<p>For RHEL5 (probably needs the EPEL repository enabled):</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>yum install ruby ruby-devel
+<span class="nv">$ </span>yum install rubygems <span class="c"># (if not installed)</span>
+</pre></div>
+
+<p>For MacOSX(MacPorts):</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>port install ruby
+<span class="nv">$ </span>port install rb-rubygems <span class="c"># (if not installed)</span>
+</pre></div>
+
+<p>Install the cap-rightscale:</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gem install cap-rightscale
+</pre></div>
+
+<h2>Settings</h2>
+
+<p>To prepare, go info the root directory of that project and run capify:</p>
+
+<div class="highlight"><pre><span class="nv">$ </span><span class="nb">cd</span> &lt;project_dir&gt;
+<span class="nv">$ </span>capify .
+</pre></div>
+
+<p>Configure Capfile(example deploy.rb):</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="nb">require</span> <span class="s1">'rubygems'</span>
+<span class="nb">require</span> <span class="s1">'cap-rightscale'</span>
+<span class="nb">require</span> <span class="s1">'cap-rightscale/recipes'</span>
+
+<span class="no">DEPLOYMENT_ID</span> <span class="o">=</span> <span class="mi">12345</span>       <span class="c1"># RightScale Deployment ID</span>
+<span class="no">SERVER_ARRAY_ID</span> <span class="o">=</span> <span class="mi">6789</span>      <span class="c1"># RightScale ServerArray ID</span>
+
+<span class="c1"># set roles</span>
+<span class="n">nickname</span> <span class="ss">:web</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"proxy"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="no">DEPLOYMENT_ID</span>
+<span class="n">server_array</span> <span class="ss">:app</span><span class="p">,</span> <span class="ss">:array_id</span> <span class="o">=&gt;</span> <span class="no">SERVER_ARRAY_ID</span>
+<span class="n">tag</span> <span class="ss">:dbm</span><span class="p">,</span> <span class="ss">:tags</span> <span class="o">=&gt;</span> <span class="s2">"xx_db:role=master"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="no">DEPLOYMENT_ID</span>
+<span class="n">tag</span> <span class="ss">:dbs</span><span class="p">,</span> <span class="ss">:tags</span> <span class="o">=&gt;</span> <span class="s2">"xx_db:role=slave"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="no">DEPLOYMENT_ID</span><span class="p">,</span> <span class="ss">:no_release</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+</pre></div>
+
+<p>Put RightScale API Credential file into <code>&lt;HOME&gt;/.rsconf/rsapiconfig.yml</code></p>
+
+<div class="highlight"><pre><span class="c1"># &lt;HOME&gt;/.rsconf/rsapiconfig.yml</span>
+<span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">user@example.com</span>
+<span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">yourpassword</span>
+<span class="l-Scalar-Plain">account</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+</pre></div>
+
+<p>Run testing:</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>cap rs:none
+</pre></div>
+
+<p>For more help with Capistrano, see this: <a href="https://github.com/capistrano/capistrano/wiki">https://github.com/capistrano/capistrano/wiki</a></p>
+
+<h3>Roles</h3>
+
+<p>In order to define role, RightScale nickname and deployment mappings:</p>
+
+<div class="highlight"><pre><span class="n">nickname</span> <span class="ss">:web</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"proxy"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span>
+<span class="c1"># =&gt; role :web, ["proxyXXX", ... in deployment ID:12345]</span>
+</pre></div>
+
+<p>ServerArray mappings:</p>
+
+<div class="highlight"><pre><span class="n">server_array</span> <span class="ss">:app</span><span class="p">,</span> <span class="ss">:array_id</span> <span class="o">=&gt;</span> <span class="mi">6789</span><span class="p">,</span> <span class="ss">:backup</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+<span class="c1"># =&gt; role(:app, :backup =&gt; true) { ["apXXX", ... in serverarray ID:6789] }</span>
+</pre></div>
+
+<p>Machine tags and deployment mappings:</p>
+
+<div class="highlight"><pre><span class="n">tag</span> <span class="ss">:dbm</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"db"</span><span class="p">,</span> <span class="ss">:tags</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s2">"xx_db:env=prod"</span><span class="p">,</span> <span class="s2">"xx_db:role=master"</span><span class="o">]</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:primary</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+<span class="c1"># =&gt; role(:dbm, :primary =&gt; true) { ["dbXXX", ... in deployment ID:12345] }</span>
+</pre></div>
+
+<h3>RightScale API Credential</h3>
+
+<p>see the below site:</p>
+
+<p><a href="http://support.rightscale.com/12-Guides/03-RightScale_API/RightScale_API_Examples/Authentication">Authentication</a> - RightScale Cloud Management Support Portal</p>
+
+<p>You must authenticate to use the RightScale API, Make sure to set your own login/password(used to login to RightScale dashboard) and account number(the tail end of the Dashboard URL: <code>Settings &gt; Account</code>)</p>
+
+<p>Put Authentication file described in RightScale API credentials into <code>&lt;HOME&gt;/.rsconf/rsapiconfig.yml</code></p>
+
+<p>Or, You can define filepath:</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">set</span> <span class="ss">:rs_confpath</span><span class="p">,</span> <span class="s2">"/project/config/rs_auth.yml"</span>
+</pre></div>
+
+<h3>Caches</h3>
+
+<p>These functions require RightScale api calls, which are slow. On the first call, Write a cache file in the temp directory.
+Default cache lifetime is 86400 seconds(1day) each role.</p>
+
+<p>modified cache life time:</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">set</span> <span class="ss">:rs_lifetime</span><span class="p">,</span> <span class="mi">86400</span> <span class="o">*</span> <span class="mi">7</span>  <span class="c1"># 1week</span>
+</pre></div>
+
+<p>This can be disabled with ENV variable: <code>RS_CACHE=false</code>, <code>set :rs_lifetime 0</code> OR <code>rs_disable :use_rs_cache</code> in the Capfile.</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>cap invoke <span class="nv">COMMAND</span><span class="o">=</span><span class="s1">'hostname'</span> <span class="nv">RS_CACHE</span><span class="o">=</span><span class="nb">false</span>
+</pre></div>
+
+<div class="highlight"><pre><span class="c1"># disable cache config/deploy.rb</span>
+<span class="n">set</span> <span class="ss">:rs_lifetime</span><span class="p">,</span> <span class="mi">0</span>
+<span class="c1"># the other way</span>
+<span class="n">rs_disable</span> <span class="ss">:use_rs_cache</span>
+</pre></div>
+
+<p>Conversely, to use cache to infinity with <code>set :rs_lifetime -1</code>.</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">set</span> <span class="ss">:rs_lifetime</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+</pre></div>
+
+<p>Cache clear task(needs after modifying the Capfile):</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>cap rs:cache:clear
+<span class="nv">$ </span>cap rs:cc
+</pre></div>
+
+<h3>Server name to associate with the role</h3>
+
+<p>Default name is Amazon EC2 local IP address, This can be changed according to the parameter.</p>
+
+<p>Use EC2 public IP address:</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">rs_enable</span> <span class="ss">:use_public_ip</span>
+</pre></div>
+
+<p>Use RightScale nickname(use as name to resolve for host in <code>/etc/hosts</code> or dns record entry).
+This takes priority over ip address.
+Using RightScale Nickname, How to DNS hostname for ec2 instances:</p>
+
+<ul>
+<li><a href="http://support.rightscale.com/12-Guides/Dashboard_Users_Guide/Design/RightScripts/Actions/Developing_RightScripts#Document_your_RightScript_and_its_Inputs">"Developing RightScripts - RightScale Cloud Management Support Portal"</a></li>
+<li><a href="http://support.rightscale.com/15-References/Lists/List_of_Environment_Inputs#RightScale_%28RS%29.3a">"Environment Inputs - RightScale Cloud Management Support Portal"</a></li>
+<li><a href="http://www.ducea.com/2009/06/01/howto-update-dns-hostnames-automatically-for-your-amazon-ec2-instances/">"HowTo update DNS hostnames automatically for your Amazon EC2 instances | MDLog:/sysadmin"</a></li>
+</ul><div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">rs_enable</span> <span class="ss">:use_nickname</span>         <span class="c1"># RightScale nickname</span>
+<span class="n">set</span> <span class="ss">:rs_domain</span><span class="p">,</span> <span class="s2">"ec2.int.com"</span>   <span class="c1"># set subdomain managed by your dns server zone(option: default ref `search` in `/etc/resolv.conf`)</span>
+
+<span class="c1"># set domain each role(priority over `set :rs_domain`)</span>
+<span class="n">nickname</span> <span class="ss">:web</span><span class="p">,</span> <span class="ss">:nickname</span> <span class="o">=&gt;</span> <span class="s2">"lb"</span><span class="p">,</span> <span class="ss">:domain</span> <span class="o">=&gt;</span> <span class="s2">"ec2.com"</span>
+</pre></div>
+
+<p>Instance nickname in Server Array is <code>&lt;ServerArray name&gt; #number</code></p>
+
+<div class="highlight"><pre><span class="c1"># ServerArray name: prod-web</span>
+<span class="n">prod</span><span class="o">-</span><span class="n">web</span> <span class="c1">#1   # &lt;= instance nickname</span>
+</pre></div>
+
+<p>cap-rightscale replace instance nickname in Server Array to use dns hostname for your dns server. Default format is <code>"%d"(example: web #1 =&gt; web1)</code>.</p>
+
+<p>Use <code>rs_array_number_format</code> to replace nickname format:</p>
+
+<div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">rs_array_number_format</span> <span class="s2">"%03d"</span>   <span class="c1"># web #1 =&gt; web001</span>
+<span class="n">rs_array_number_format</span> <span class="s2">"-%d"</span>    <span class="c1"># web #1 =&gt; web-1</span>
+</pre></div>
+
+<h3>Validate</h3>
+
+<p>Using ping and name resolv, validate host(except invalid host).</p>
+
+<ul>
+<li>
+<code>rs_enable :validate_echo</code>: In case you want to except hang-up instance</li>
+<li>
+<code>rs_enable :validate_resolv</code>: In case you want to except host can not be resolved</li>
+</ul><div class="highlight"><pre><span class="c1"># config/deploy.rb</span>
+<span class="n">rs_enable</span> <span class="ss">:validate_echo</span><span class="p">,</span> <span class="ss">:validate_resolv</span>
+</pre></div>
+
+<h2>nickname</h2>
+
+<p>Definition:</p>
+
+<p><code>nickname(role, params)</code></p>
+
+<h3>Arguments</h3>
+
+<h4>role</h4>
+
+<p>Capistrano role paramter(:app, :web, :db)</p>
+
+<h4>params</h4>
+
+<p>Example:</p>
+
+<div class="highlight"><pre><span class="n">nickname</span> <span class="ss">:app</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"ap"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:user</span> <span class="o">=&gt;</span> <span class="s2">"www"</span>
+<span class="n">nickname</span> <span class="ss">:db</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"db"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:except_tags</span> <span class="o">=&gt;</span> <span class="s2">"xx_db:state=broken"</span>
+<span class="n">nickname</span> <span class="ss">:mem</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"mem"</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:except_tags</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s2">"xx_mem:state=out_of_service"</span><span class="o">]</span>
+</pre></div>
+
+<h2>server_array</h2>
+
+<p>Definition:</p>
+
+<p><code>server_array(role, params)</code></p>
+
+<h3>Arguments</h3>
+
+<h4>role</h4>
+
+<p>Capistrano role paramter(:app, :web, :db)</p>
+
+<h4>params</h4>
+
+<p>Example:</p>
+
+<div class="highlight"><pre><span class="n">server_array</span> <span class="ss">:app</span><span class="p">,</span> <span class="ss">:array_id</span> <span class="o">=&gt;</span> <span class="mi">6789</span><span class="p">,</span> <span class="ss">:user</span> <span class="o">=&gt;</span> <span class="s2">"www"</span>
+<span class="n">server_array</span> <span class="ss">:mem</span><span class="p">,</span> <span class="ss">:array_id</span> <span class="o">=&gt;</span> <span class="mi">4321</span><span class="p">,</span> <span class="ss">:except_tags</span> <span class="o">=&gt;</span> <span class="s2">"xx_mem:state=broken"</span><span class="p">,</span> <span class="ss">:domain</span> <span class="o">=&gt;</span> <span class="s2">"ec2.int.com"</span>
+</pre></div>
+
+<h2>tag</h2>
+
+<p>Definition:</p>
+
+<p><code>tag(role, params)</code></p>
+
+<h3>role</h3>
+
+<p>Capistrano role paramter(:app, :web, :db)</p>
+
+<h3>params</h3>
+
+<p>Example:</p>
+
+<div class="highlight"><pre><span class="n">tag</span> <span class="ss">:dbm</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:name_prefix</span> <span class="o">=&gt;</span> <span class="s2">"db"</span><span class="p">,</span> <span class="ss">:tags</span> <span class="o">=&gt;</span> <span class="s2">"xx_db:role=master"</span><span class="p">,</span> <span class="ss">:primary</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+<span class="n">tag</span> <span class="ss">:dbs</span><span class="p">,</span> <span class="ss">:deployment</span> <span class="o">=&gt;</span> <span class="mi">12345</span><span class="p">,</span> <span class="ss">:tags</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s2">"xx_db:role=slave"</span><span class="p">,</span> <span class="s2">"xx_db:master"</span><span class="o">]</span>   <span class="c1"># matching tag "xx_db:master=&lt;master_ip&gt;"</span>
+</pre></div>
+
+<h2>Output message</h2>
+
+<p>To suppress output as possible(-v option):</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>cap -v shell
+<span class="nv">$ </span>cap -v invoke <span class="nv">COMMAND</span><span class="o">=</span><span class="s1">'cat /var/log/httpd/access_log'</span> 2&gt;/tmp/collect_httpd_access_log
+</pre></div>
+
+<h2>Contributing to cap-rightscale</h2>
+
+<ul>
+<li>Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet</li>
+<li>Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it</li>
+<li>Fork the project</li>
+<li>Start a feature/bugfix branch</li>
+<li>Commit and push until you are happy with your contribution</li>
+<li>Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.</li>
+<li>Please try not to mess with the Rakefile, version, or history. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.</li>
+</ul><h2>Copyright</h2>
+
+<p>Copyright (c) 2011 Satoshi Ohki. See LICENSE.txt for
+further details.</p>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/roothybrid7">roothybrid7</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
